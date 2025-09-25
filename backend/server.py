@@ -5,13 +5,13 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import hashlib
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Annotated
 import uuid
 from datetime import datetime, timezone, timedelta
 from enum import Enum
-from passlib.context import CryptContext
 from jose import JWTError, jwt
 
 ROOT_DIR = Path(__file__).parent
@@ -28,12 +28,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Password hashing
-pwd_context = CryptContext(
-    schemes=["bcrypt"], 
-    deprecated="auto",
-    bcrypt__rounds=12,
-    bcrypt__ident="2b"
-)
 security = HTTPBearer()
 
 # Create the main app without a prefix
@@ -190,16 +184,13 @@ def parse_from_mongo(item):
 
 # Auth helper functions
 def verify_password(plain_password, hashed_password):
-    # Ensure password is not too long for bcrypt (max 72 bytes)
-    if len(plain_password) > 72:
-        plain_password = plain_password[:72]
-    return pwd_context.verify(plain_password, hashed_password)
+    # Simple hash comparison using SHA256
+    password_hash = hashlib.sha256(plain_password.encode()).hexdigest()
+    return password_hash == hashed_password
 
 def get_password_hash(password):
-    # Ensure password is not too long for bcrypt (max 72 bytes)
-    if len(password) > 72:
-        password = password[:72]
-    return pwd_context.hash(password)
+    # Simple SHA256 hash
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
