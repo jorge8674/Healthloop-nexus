@@ -185,9 +185,15 @@ def parse_from_mongo(item):
 
 # Auth helper functions
 def verify_password(plain_password, hashed_password):
+    # Ensure password is not too long for bcrypt (max 72 bytes)
+    if len(plain_password) > 72:
+        plain_password = plain_password[:72]
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
+    # Ensure password is not too long for bcrypt (max 72 bytes)
+    if len(password) > 72:
+        password = password[:72]
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
