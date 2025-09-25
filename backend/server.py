@@ -653,7 +653,8 @@ async def init_demo_data():
             professional = Professional(
                 user_id=user.id,
                 professional_type=user_data["professional_type"],
-                specialization=user_data["specialization"]
+                specialization=user_data["specialization"],
+                bio=f"Especialista en {user_data['specialization']}"
             )
             professional_dict = prepare_for_mongo(professional.dict())
             await db.professionals.insert_one(professional_dict)
