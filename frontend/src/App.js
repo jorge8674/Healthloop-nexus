@@ -8,12 +8,15 @@ import { Separator } from './components/ui/separator';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
+import { Progress } from './components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { 
   ShoppingCart, Plus, Check, Star, Leaf, Heart, Zap, ShoppingBag, 
   User, LogOut, Calendar, TrendingUp, Users, DollarSign, 
-  Award, Target, Clock, ChevronRight
+  Award, Target, Clock, ChevronRight, Trophy, Timer, Play,
+  MessageSquare, FileText, BarChart3, Sparkles, Crown, Medal
 } from 'lucide-react';
 import './App.css';
 
@@ -74,7 +77,7 @@ const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(newUser);
       
-      toast.success(`¡Cuenta creada exitosamente! Bienvenido, ${newUser.name}!`);
+      toast.success(`¡Cuenta creada! +${100} puntos de bienvenida!`);
       return newUser;
     } catch (error) {
       console.error('Register error:', error);
@@ -90,8 +93,17 @@ const AuthProvider = ({ children }) => {
     toast.success('Sesión cerrada exitosamente');
   };
 
+  const updateUserPoints = (newPoints, totalPoints, level) => {
+    setUser(prev => ({
+      ...prev,
+      points: newPoints,
+      total_points_earned: totalPoints,
+      level: level
+    }));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUserPoints }}>
       {children}
     </AuthContext.Provider>
   );
@@ -103,6 +115,223 @@ const useAuth = () => {
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
+};
+
+// Points Progress Component
+const PointsProgress = ({ user }) => {
+  const [pointsData, setPointsData] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchPointsHistory();
+    }
+  }, [user]);
+
+  const fetchPointsHistory = async () => {
+    try {
+      const response = await axios.get(`${API}/points/history`);
+      setPointsData(response.data);
+    } catch (error) {
+      console.error('Error fetching points history:', error);
+    }
+  };
+
+  if (!pointsData) return null;
+
+  const getLevelColor = (level) => {
+    switch (level) {
+      case 'Beginner': return 'from-gray-400 to-gray-600';
+      case 'Active': return 'from-blue-400 to-blue-600';
+      case 'Premium': return 'from-purple-400 to-purple-600';
+      case 'Elite': return 'from-yellow-400 to-yellow-600';
+      default: return 'from-gray-400 to-gray-600';
+    }
+  };
+
+  const getLevelIcon = (level) => {
+    switch (level) {
+      case 'Beginner': return <Target className="w-4 h-4" />;
+      case 'Active': return <Zap className="w-4 h-4" />;
+      case 'Premium': return <Crown className="w-4 h-4" />;
+      case 'Elite': return <Trophy className="w-4 h-4" />;
+      default: return <Target className="w-4 h-4" />;
+    }
+  };
+
+  return (
+    <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-0 shadow-lg">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center">
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${getLevelColor(user.level)} flex items-center justify-center text-white mr-3`}>
+              {getLevelIcon(user.level)}
+            </div>
+            Nivel {user.level}
+          </CardTitle>
+          <Badge variant="outline" className="bg-white">
+            {pointsData.total_points} pts
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Progreso al siguiente nivel</span>
+            <span className="font-medium">{pointsData.progress_percentage}%</span>
+          </div>
+          <Progress 
+            value={pointsData.progress_percentage} 
+            className="h-3"
+            data-testid="points-progress-bar"
+          />
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{user.level}</span>
+            <span>{pointsData.next_level_threshold === 10000 ? 'Máximo' : `${pointsData.next_level_threshold} pts`}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Leaderboard Component
+const Leaderboard = () => {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, []);
+
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await axios.get(`${API}/leaderboard`);
+      setLeaderboard(response.data.leaderboard);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      setLoading(false);
+    }
+  };
+
+  const getRankIcon = (rank) => {
+    switch (rank) {
+      case 1: return <Trophy className="w-5 h-5 text-yellow-500" />;
+      case 2: return <Medal className="w-5 h-5 text-gray-400" />;
+      case 3: return <Award className="w-5 h-5 text-amber-600" />;
+      default: return <span className="w-5 h-5 flex items-center justify-center text-sm font-bold text-gray-500">#{rank}</span>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2 text-orange-500" />
+            Top Usuarios
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-3">
+            {[1,2,3].map(i => (
+              <div key={i} className="h-12 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+      <CardHeader>
+        <CardTitle className="flex items-center text-xl">
+          <BarChart3 className="w-5 h-5 mr-2 text-orange-500" />
+          Top Usuarios Esta Semana
+        </CardTitle>
+      </CardHeader>
+      <CardContent data-testid="leaderboard">
+        <div className="space-y-3">
+          {leaderboard.slice(0, 5).map((entry, index) => (
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div className="flex items-center space-x-3">
+                {getRankIcon(entry.rank)}
+                <div>
+                  <p className="font-semibold text-gray-900">{entry.name}</p>
+                  <p className="text-sm text-gray-600">{entry.level}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-green-600">{entry.points} pts</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Consultation Timer Component
+const ConsultationTimer = ({ duration = 30 }) => {
+  const [timeLeft, setTimeLeft] = useState(duration * 60); // Convert minutes to seconds
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    let interval = null;
+    if (isActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(timeLeft => timeLeft - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setIsActive(false);
+      toast.success('¡Consulta completada!');
+    }
+    return () => clearInterval(interval);
+  }, [isActive, timeLeft]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+      <CardHeader>
+        <CardTitle className="flex items-center text-xl">
+          <Timer className="w-5 h-5 mr-2 text-blue-500" />
+          Timer de Consulta
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="text-center">
+        <div className="text-4xl font-bold text-blue-600 mb-4" data-testid="consultation-timer">
+          {formatTime(timeLeft)}
+        </div>
+        <div className="space-x-2">
+          <Button
+            onClick={() => setIsActive(!isActive)}
+            disabled={timeLeft === 0}
+            className={isActive ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}
+            data-testid="timer-toggle-btn"
+          >
+            {isActive ? 'Pausar' : 'Iniciar'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setTimeLeft(duration * 60);
+              setIsActive(false);
+            }}
+            data-testid="timer-reset-btn"
+          >
+            Reiniciar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 // Protected Route Component
@@ -135,6 +364,16 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 const NavigationHeader = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const getLevelBadgeColor = (level) => {
+    switch (level) {
+      case 'Beginner': return 'bg-gray-100 text-gray-800';
+      case 'Active': return 'bg-blue-100 text-blue-800';
+      case 'Premium': return 'bg-purple-100 text-purple-800';
+      case 'Elite': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <nav className="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
@@ -171,10 +410,20 @@ const NavigationHeader = () => {
                   <User className="w-4 h-4 mr-2" />
                   Dashboard
                 </Button>
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-100 to-yellow-50 px-3 py-1 rounded-full">
-                  <Award className="w-4 h-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-700">{user.points} pts</span>
+                
+                {/* Points and Level Display */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 bg-gradient-to-r from-yellow-100 to-yellow-50 px-3 py-1 rounded-full">
+                    <Award className="w-4 h-4 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-700" data-testid="header-points">
+                      {user.points} pts
+                    </span>
+                  </div>
+                  <Badge className={getLevelBadgeColor(user.level)} data-testid="header-level">
+                    {user.level}
+                  </Badge>
                 </div>
+                
                 <Button
                   variant="outline"
                   onClick={logout}
@@ -247,6 +496,27 @@ const LandingPage = () => {
               </Button>
             </div>
 
+            {/* Gamification Highlight */}
+            {user && (
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 max-w-md mx-auto mb-12 shadow-lg">
+                <div className="flex items-center justify-center mb-3">
+                  <Sparkles className="w-6 h-6 text-yellow-500 mr-2" />
+                  <span className="text-lg font-semibold text-gray-900">Sistema de Recompensas</span>
+                </div>
+                <p className="text-gray-600 mb-4">Gana puntos por cada acción y desbloquea niveles exclusivos</p>
+                <div className="flex justify-center space-x-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{user.points}</div>
+                    <div className="text-xs text-gray-500">Puntos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{user.level}</div>
+                    <div className="text-xs text-gray-500">Nivel</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Features Grid */}
             <div className="grid md:grid-cols-3 gap-8 mt-16">
               <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
@@ -280,13 +550,13 @@ const LandingPage = () => {
               <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
                 <CardHeader className="text-center">
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-8 h-8 text-white" />
+                    <Trophy className="w-8 h-8 text-white" />
                   </div>
                   <CardTitle className="text-xl text-gray-900">Recompensas</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-600">
-                    Gana HealthLoop Points y canjea por descuentos y productos exclusivos.
+                    Sistema de puntos avanzado con niveles, badges y recompensas exclusivas.
                   </p>
                 </CardContent>
               </Card>
@@ -298,7 +568,7 @@ const LandingPage = () => {
   );
 };
 
-// Auth Page Component
+// Auth Page Component (same as before, but enhanced)
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -314,7 +584,6 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { login, register, user } = useAuth();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -373,7 +642,7 @@ const AuthPage = () => {
           <CardContent>
             {/* Demo Credentials */}
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm font-medium text-blue-800 mb-2">Cuentas Demo:</p>
+              <p className="text-sm font-medium text-blue-800 mb-2">Cuentas Demo Actualizadas:</p>
               <div className="space-y-2">
                 <Button
                   type="button"
@@ -383,7 +652,7 @@ const AuthPage = () => {
                   onClick={() => fillDemoCredentials('client')}
                   data-testid="demo-client-btn"
                 >
-                  👤 Cliente Demo
+                  👤 Ana García - Cliente (650 pts, Active)
                 </Button>
                 <Button
                   type="button"
@@ -393,7 +662,7 @@ const AuthPage = () => {
                   onClick={() => fillDemoCredentials('nutritionist')}
                   data-testid="demo-nutritionist-btn"
                 >
-                  🥗 Nutricionista Demo
+                  🥗 Dr. María López - Nutricionista (300 pts)
                 </Button>
                 <Button
                   type="button"
@@ -403,7 +672,7 @@ const AuthPage = () => {
                   onClick={() => fillDemoCredentials('trainer')}
                   data-testid="demo-trainer-btn"
                 >
-                  💪 Entrenador Demo
+                  💪 Carlos Fitness - Entrenador (150 pts)
                 </Button>
               </div>
             </div>
@@ -518,11 +787,13 @@ const AuthPage = () => {
   );
 };
 
-// Client Dashboard Component
+// Client Dashboard Component (Enhanced)
 const ClientDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPointsModal, setShowPointsModal] = useState(false);
   const navigate = useNavigate();
+  const { user, updateUserPoints } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
@@ -537,6 +808,31 @@ const ClientDashboard = () => {
       console.error('Error fetching dashboard data:', error);
       toast.error('Error al cargar dashboard');
       setLoading(false);
+    }
+  };
+
+  const handleAddPoints = async (action, description) => {
+    try {
+      await axios.post(`${API}/points/add`, {
+        action: action,
+        description: description
+      });
+      
+      // Refresh dashboard data
+      fetchDashboardData();
+      
+      // Update user in context
+      const updatedUser = await axios.get(`${API}/auth/me`);
+      updateUserPoints(
+        updatedUser.data.points, 
+        updatedUser.data.total_points_earned, 
+        updatedUser.data.level
+      );
+      
+      toast.success(`¡Puntos agregados por ${description}!`);
+    } catch (error) {
+      console.error('Error adding points:', error);
+      toast.error('Error al agregar puntos');
     }
   };
 
@@ -566,16 +862,38 @@ const ClientDashboard = () => {
           </p>
         </div>
 
-        {/* Points and Stats */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        {/* Points Progress Section */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2">
+            <PointsProgress user={user} />
+          </div>
+          <div>
+            <Leaderboard />
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-yellow-100 text-sm">Tus Puntos</p>
+                  <p className="text-yellow-100 text-sm">Puntos Totales</p>
                   <p className="text-2xl font-bold" data-testid="user-points">{dashboardData?.user.points} pts</p>
                 </div>
                 <Award className="w-8 h-8 text-yellow-100" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Nivel Actual</p>
+                  <p className="text-2xl font-bold text-gray-900" data-testid="user-level">{dashboardData?.user.level}</p>
+                </div>
+                <Trophy className="w-8 h-8 text-purple-500" />
               </div>
             </CardContent>
           </Card>
@@ -605,7 +923,79 @@ const ClientDashboard = () => {
           </Card>
         </div>
 
+        {/* Action Buttons for Points */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <Sparkles className="w-5 h-5 mr-2 text-orange-500" />
+              Gana Puntos Adicionales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Button
+                onClick={() => handleAddPoints('complete_profile', 'Completar perfil')}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="complete-profile-btn"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Completar Perfil (+50 pts)
+              </Button>
+              <Button
+                onClick={() => handleAddPoints('schedule_consultation', 'Agendar consulta')}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                data-testid="schedule-consultation-btn"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Agendar Consulta (+150 pts)
+              </Button>
+              <Button
+                onClick={() => handleAddPoints('refer_friend', 'Referir amigo')}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                data-testid="refer-friend-btn"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Referir Amigo (+300 pts)
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid lg:grid-cols-2 gap-8">
+          {/* Recent Points Activity */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl text-gray-900">
+                <TrendingUp className="w-5 h-5 mr-2 text-green-500" />
+                Actividad de Puntos Reciente
+              </CardTitle>
+            </CardHeader>
+            <CardContent data-testid="recent-points">
+              {dashboardData?.recent_points.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboardData.recent_points.map((transaction, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <div>
+                        <p className="font-semibold text-gray-900">{transaction.description}</p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(transaction.created_at).toLocaleDateString('es-ES')}
+                        </p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800">
+                        +{transaction.points} pts
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-500">
+                  <Award className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No hay actividad de puntos reciente</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Upcoming Appointments */}
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
@@ -653,66 +1043,112 @@ const ClientDashboard = () => {
               )}
             </CardContent>
           </Card>
-
-          {/* Recommended Products */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-xl text-gray-900">
-                <div className="flex items-center">
-                  <Star className="w-5 h-5 mr-2 text-yellow-500" />
-                  Productos Recomendados
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/marketplace')}
-                  className="text-blue-600 hover:text-blue-800"
-                  data-testid="view-all-products-btn"
-                >
-                  Ver Todos <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent data-testid="recommended-products">
-              <div className="space-y-4">
-                {dashboardData?.recommended_products.slice(0, 3).map((product) => (
-                  <div key={product.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <img 
-                      src={product.image_url} 
-                      alt={product.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{product.name}</p>
-                      <p className="text-sm text-gray-600">{product.calories} cal</p>
-                      <p className="text-lg font-bold text-green-600">${product.price}</p>
-                    </div>
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              <Button
-                onClick={() => navigate('/marketplace')}
-                className="w-full mt-4 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white"
-                data-testid="continue-shopping-btn"
-              >
-                <ShoppingBag className="w-4 h-4 mr-2" />
-                Seguir Comprando
-              </Button>
-            </CardContent>
-          </Card>
         </div>
+
+        {/* Recommended Products */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between text-xl text-gray-900">
+              <div className="flex items-center">
+                <Star className="w-5 h-5 mr-2 text-yellow-500" />
+                Productos Recomendados
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/marketplace')}
+                className="text-blue-600 hover:text-blue-800"
+                data-testid="view-all-products-btn"
+              >
+                Ver Todos <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent data-testid="recommended-products">
+            <div className="grid md:grid-cols-3 gap-4">
+              {dashboardData?.recommended_products.slice(0, 3).map((product) => (
+                <div key={product.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+                  <img 
+                    src={product.image_url} 
+                    alt={product.name}
+                    className="w-full h-32 object-cover rounded-lg mb-3"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900 mb-1">{product.name}</p>
+                    <p className="text-sm text-gray-600 mb-2">{product.calories} cal</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-bold text-green-600">${product.price}</p>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <Button
+              onClick={() => navigate('/marketplace')}
+              className="w-full mt-6 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white"
+              data-testid="continue-shopping-btn"
+            >
+              <ShoppingBag className="w-4 h-4 mr-2" />
+              Seguir Comprando
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Points Redemption Modal */}
+        <Dialog open={showPointsModal} onOpenChange={setShowPointsModal}>
+          <DialogTrigger asChild>
+            <Button 
+              className="fixed bottom-6 right-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full p-4 shadow-lg"
+              data-testid="redeem-points-btn"
+            >
+              <Award className="w-6 h-6" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Canjear Puntos</DialogTitle>
+              <DialogDescription>
+                Usa tus {user?.points} puntos para obtener recompensas exclusivas
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">Descuento 10%</span>
+                  <Badge>100 pts</Badge>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">En tu próxima compra</p>
+                <Button size="sm" disabled={user?.points < 100} className="w-full">
+                  Canjear
+                </Button>
+              </div>
+              <div className="border rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">Consulta Gratis</span>
+                  <Badge>500 pts</Badge>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">30 minutos con nutricionista</p>
+                <Button size="sm" disabled={user?.points < 500} className="w-full">
+                  Canjear
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
 };
 
-// Professional Dashboard Component  
+// Professional Dashboard Component (Enhanced)
 const ProfessionalDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
+  const [activeConsultation, setActiveConsultation] = useState(null);
+  const [recommendations, setRecommendations] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -728,6 +1164,44 @@ const ProfessionalDashboard = () => {
       console.error('Error fetching dashboard data:', error);
       toast.error('Error al cargar dashboard');
       setLoading(false);
+    }
+  };
+
+  const startConsultation = async (clientId) => {
+    try {
+      const response = await axios.post(`${API}/consultations/start`, {
+        client_id: clientId
+      });
+      
+      setActiveConsultation(response.data);
+      toast.success('Consulta iniciada exitosamente');
+    } catch (error) {
+      console.error('Error starting consultation:', error);
+      toast.error('Error al iniciar consulta');
+    }
+  };
+
+  const completeConsultation = async () => {
+    if (!activeConsultation || !recommendations.trim()) {
+      toast.error('Por favor agrega recomendaciones antes de completar');
+      return;
+    }
+
+    try {
+      await axios.put(`${API}/consultations/complete`, {
+        consultation_id: activeConsultation.consultation_id,
+        notes: "Consulta completada exitosamente",
+        recommendations: recommendations
+      });
+      
+      setActiveConsultation(null);
+      setRecommendations('');
+      fetchDashboardData(); // Refresh data
+      
+      toast.success('¡Consulta completada! Puntos otorgados al cliente.');
+    } catch (error) {
+      console.error('Error completing consultation:', error);
+      toast.error('Error al completar consulta');
     }
   };
 
@@ -756,6 +1230,24 @@ const ProfessionalDashboard = () => {
             Gestiona tus clientes y consultas - {dashboardData?.user.name}
           </p>
         </div>
+
+        {/* Active Consultation Alert */}
+        {activeConsultation && (
+          <Card className="bg-gradient-to-r from-green-400 to-green-500 text-white border-0 shadow-lg mb-8">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Consulta en Progreso</h3>
+                  <p className="text-green-100">Iniciada a las {new Date(activeConsultation.start_time).toLocaleTimeString()}</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Play className="w-6 h-6" />
+                  <span className="text-lg font-bold">Activa</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
@@ -787,8 +1279,8 @@ const ProfessionalDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm">Comisiones Pendientes</p>
-                  <p className="text-2xl font-bold" data-testid="commission-amount">${dashboardData?.commission_pending}</p>
+                  <p className="text-green-100 text-sm">Ganancias Totales</p>
+                  <p className="text-2xl font-bold" data-testid="total-earnings">${dashboardData?.total_earnings}</p>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-100" />
               </div>
@@ -808,35 +1300,100 @@ const ProfessionalDashboard = () => {
           </Card>
         </div>
 
+        {/* Consultation Timer */}
+        {activeConsultation && (
+          <div className="grid lg:grid-cols-2 gap-8 mb-8">
+            <ConsultationTimer duration={30} />
+            
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl">
+                  <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                  Generar Recomendaciones
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="recommendations">Recomendaciones para el Cliente</Label>
+                  <textarea
+                    id="recommendations"
+                    value={recommendations}
+                    onChange={(e) => setRecommendations(e.target.value)}
+                    placeholder="Escribe las recomendaciones detalladas para el cliente..."
+                    className="w-full p-3 border rounded-lg h-32 resize-none"
+                    data-testid="recommendations-textarea"
+                  />
+                </div>
+                <Button
+                  onClick={completeConsultation}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="complete-consultation-btn"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Completar Consulta (+200 pts al cliente)
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Assigned Clients */}
+          {/* Enhanced Client Management */}
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center text-xl text-gray-900">
                 <Users className="w-5 h-5 mr-2 text-blue-500" />
-                Tus Clientes Asignados
+                Gestión Avanzada de Clientes
               </CardTitle>
             </CardHeader>
             <CardContent data-testid="assigned-clients">
               <div className="space-y-4">
                 {dashboardData?.assigned_clients.map((client) => (
-                  <div key={client.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
+                  <div key={client.id} className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">{client.name}</p>
+                          <p className="text-sm text-gray-600">
+                            <Target className="w-3 h-3 inline mr-1" />
+                            {client.objective}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{client.name}</p>
-                        <p className="text-sm text-gray-600">
-                          <Target className="w-3 h-3 inline mr-1" />
-                          {client.objective}
-                        </p>
-                        <p className="text-xs text-gray-500">Desde: {client.start_date}</p>
+                      <Badge variant="outline" className="bg-green-100 text-green-800">
+                        {client.progress}
+                      </Badge>
+                    </div>
+                    
+                    {/* Enhanced client stats */}
+                    <div className="grid grid-cols-3 gap-2 text-center text-sm mb-3">
+                      <div className="bg-white rounded p-2">
+                        <div className="font-bold text-blue-600">{client.points}</div>
+                        <div className="text-gray-500">Puntos</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="font-bold text-purple-600">{client.level}</div>
+                        <div className="text-gray-500">Nivel</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="font-bold text-gray-600">{client.last_consultation}</div>
+                        <div className="text-gray-500">Última</div>
                       </div>
                     </div>
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      {client.progress}
-                    </Badge>
+                    
+                    <Button
+                      onClick={() => startConsultation(client.id)}
+                      disabled={activeConsultation !== null}
+                      size="sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      data-testid={`start-consultation-${client.id}`}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      {activeConsultation ? 'Consulta en Progreso' : 'Iniciar Consulta Demo'}
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -855,7 +1412,7 @@ const ProfessionalDashboard = () => {
               <div className="space-y-4">
                 {dashboardData?.upcoming_appointments.map((appointment) => (
                   <div key={appointment.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                    <div>
+                    <div className="flex-1">
                       <p className="font-semibold text-gray-900">{appointment.client_name}</p>
                       <p className="text-sm text-gray-600">{appointment.type}</p>
                       <p className="text-xs text-green-600">
@@ -867,12 +1424,17 @@ const ProfessionalDashboard = () => {
                           minute: '2-digit'
                         })}
                       </p>
+                      <div className="flex items-center mt-1">
+                        <Award className="w-3 h-3 text-orange-500 mr-1" />
+                        <span className="text-xs text-gray-600">{appointment.client_points} pts</span>
+                      </div>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className="bg-blue-100 text-blue-800 mb-2">
                         {appointment.duration} min
                       </Badge>
                       <Button size="sm" className="block bg-green-600 hover:bg-green-700 text-white">
+                        <MessageSquare className="w-4 h-4 mr-1" />
                         Unirse
                       </Button>
                     </div>
@@ -900,7 +1462,7 @@ const Dashboard = () => {
   }
 };
 
-// Marketplace Component (Updated to work with auth)
+// Marketplace Component (same as before but with updated points integration)
 const Marketplace = () => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState({ items: [], total: 0 });
@@ -1014,7 +1576,7 @@ const Marketplace = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Marketplace de Comidas Saludables</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Descubre nuestro catálogo premium de comidas nutritivas y sabrosas, 
-            diseñadas por expertos en nutrición.
+            diseñadas por expertos en nutrición. ¡Gana puntos con cada compra!
           </p>
         </div>
 
@@ -1075,6 +1637,11 @@ const Marketplace = () => {
                 <Badge className={`absolute top-3 right-3 ${getDietTypeColor(product.diet_type)}`}>
                   {getDietTypeIcon(product.diet_type)} {product.diet_type}
                 </Badge>
+                {user && (
+                  <div className="absolute top-3 left-3 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    +{Math.round(product.price * 10)} pts
+                  </div>
+                )}
               </div>
               <CardHeader>
                 <CardTitle className="text-xl text-gray-900">{product.name}</CardTitle>
@@ -1112,13 +1679,13 @@ const Marketplace = () => {
   );
 };
 
-// Cart Component (Updated with auth)
+// Cart Component (Enhanced with points display)
 const Cart = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [showCheckout, setShowCheckout] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUserPoints } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -1153,13 +1720,28 @@ const Cart = () => {
   const processOrder = async () => {
     try {
       const response = await axios.post(`${API}/orders`);
-      toast.success('¡Pago procesado exitosamente (Demo)!');
+      
+      // Calculate points that will be earned
+      const pointsFromPurchase = Math.round(cart.total * 10);
+      const firstPurchaseBonus = user.points === 150 ? 200 : 0; // If user has only initial points
+      const totalPointsEarned = pointsFromPurchase + firstPurchaseBonus;
+      
+      toast.success(`¡Pedido completado! +${totalPointsEarned} puntos ganados!`);
+      
+      // Update user points in context
+      const updatedUser = await axios.get(`${API}/auth/me`);
+      updateUserPoints(
+        updatedUser.data.points, 
+        updatedUser.data.total_points_earned, 
+        updatedUser.data.level
+      );
       
       setTimeout(() => {
         navigate('/success', { 
           state: { 
             order: response.data,
-            userInfo: user
+            userInfo: user,
+            pointsEarned: totalPointsEarned
           } 
         });
       }, 1500);
@@ -1180,6 +1762,8 @@ const Cart = () => {
       </div>
     );
   }
+
+  const totalPointsToEarn = Math.round(cart.total * 10);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100">
@@ -1204,6 +1788,19 @@ const Cart = () => {
           </Card>
         ) : (
           <div className="space-y-6">
+            {/* Points Earning Info */}
+            <Card className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white border-0 shadow-lg">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Award className="w-6 h-6 mr-2" />
+                    <span className="font-semibold">Ganarás {totalPointsToEarn} puntos con esta compra</span>
+                  </div>
+                  <Sparkles className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Cart Items */}
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
@@ -1221,6 +1818,10 @@ const Cart = () => {
                       <h3 className="font-semibold text-gray-900">{item.product.name}</h3>
                       <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
                       <p className="text-sm text-green-600 font-medium">${item.product.price} c/u</p>
+                      <div className="flex items-center mt-1">
+                        <Award className="w-3 h-3 text-yellow-500 mr-1" />
+                        <span className="text-xs text-gray-600">+{Math.round(item.product.price * 10 * item.quantity)} pts</span>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">${item.subtotal}</p>
@@ -1237,8 +1838,13 @@ const Cart = () => {
                 >
                   Vaciar Carrito
                 </Button>
-                <div className="text-2xl font-bold text-green-600" data-testid="cart-total">
-                  Total: ${cart.total}
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600" data-testid="cart-total">
+                    Total: ${cart.total}
+                  </div>
+                  <div className="text-sm text-yellow-600 font-medium">
+                    +{totalPointsToEarn} puntos
+                  </div>
                 </div>
               </CardFooter>
             </Card>
@@ -1262,7 +1868,7 @@ const Cart = () => {
                 <CardHeader>
                   <CardTitle className="text-xl">Confirmar Pedido (Demo)</CardTitle>
                   <CardDescription>
-                    Usuario: {user?.name} ({user?.email})
+                    Usuario: {user?.name} ({user?.email}) | Nivel: {user?.level}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4" data-testid="checkout-form">
@@ -1271,6 +1877,17 @@ const Cart = () => {
                       <strong>🎭 Modo Demo:</strong> Esta es una compra simulada. 
                       No se procesarán pagos reales.
                     </p>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <Award className="w-5 h-5 text-green-600 mr-2" />
+                      <div>
+                        <p className="font-semibold text-green-800">Puntos a Ganar</p>
+                        <p className="text-sm text-green-700">
+                          {totalPointsToEarn} puntos por compra {user?.points === 150 ? '+ 200 puntos de primera compra' : ''}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter className="space-x-4">
@@ -1299,16 +1916,17 @@ const Cart = () => {
   );
 };
 
-// Success Page Component (Updated)
+// Success Page Component (Enhanced with points)
 const SuccessPage = () => {
   const navigate = useNavigate();
   const [orderData, setOrderData] = useState(null);
-
+  
   useEffect(() => {
     setOrderData({
       id: 'DEMO-' + Math.random().toString(36).substr(2, 9),
       total: 45.50,
-      status: 'completed'
+      status: 'completed',
+      pointsEarned: Math.round(45.50 * 10)
     });
   }, []);
 
@@ -1325,8 +1943,18 @@ const SuccessPage = () => {
           </h1>
           
           <p className="text-gray-600 mb-6">
-            Tu pedido ha sido procesado exitosamente en modo demo. ¡Has ganado puntos adicionales!
+            Tu pedido ha sido procesado exitosamente en modo demo.
           </p>
+
+          {/* Points Earned Highlight */}
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg p-4 mb-6 text-white">
+            <div className="flex items-center justify-center mb-2">
+              <Award className="w-6 h-6 mr-2" />
+              <span className="font-bold text-lg">¡Puntos Ganados!</span>
+            </div>
+            <div className="text-2xl font-bold">+{orderData?.pointsEarned || 455} pts</div>
+            <div className="text-sm opacity-90">Agregados a tu cuenta</div>
+          </div>
           
           {orderData && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
@@ -1349,7 +1977,7 @@ const SuccessPage = () => {
               data-testid="back-dashboard-btn"
             >
               <User className="w-4 h-4 mr-2" />
-              Volver al Dashboard
+              Ver Mi Dashboard
             </Button>
             <Button
               onClick={() => navigate('/marketplace')}
