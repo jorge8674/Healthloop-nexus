@@ -57,6 +57,45 @@ class ProfessionalType(str, Enum):
     NUTRITIONIST = "nutritionist"
     TRAINER = "trainer"
 
+class PointAction(str, Enum):
+    REGISTRATION = "registration"
+    FIRST_PURCHASE = "first_purchase"
+    PURCHASE = "purchase"
+    SCHEDULE_CONSULTATION = "schedule_consultation"
+    COMPLETE_PROFILE = "complete_profile"
+    REFER_FRIEND = "refer_friend"
+    COMPLETE_CONSULTATION = "complete_consultation"
+
+class BadgeType(str, Enum):
+    BEGINNER = "beginner"
+    ACTIVE = "active"
+    PREMIUM = "premium"
+    ELITE = "elite"
+
+class ConsultationStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+# Points configuration
+POINT_VALUES = {
+    PointAction.REGISTRATION: 100,
+    PointAction.FIRST_PURCHASE: 200,
+    PointAction.PURCHASE: 10,  # Per dollar spent
+    PointAction.SCHEDULE_CONSULTATION: 150,
+    PointAction.COMPLETE_PROFILE: 50,
+    PointAction.REFER_FRIEND: 300,
+    PointAction.COMPLETE_CONSULTATION: 200
+}
+
+BADGE_THRESHOLDS = {
+    BadgeType.BEGINNER: 0,
+    BadgeType.ACTIVE: 500,
+    BadgeType.PREMIUM: 1500,
+    BadgeType.ELITE: 5000
+}
+
 # Models
 class Product(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -96,6 +135,34 @@ class User(BaseModel):
     role: UserRole
     password_hash: str
     points: int = 150  # Initial points
+    total_points_earned: int = 150
+    level: str = "Beginner"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PointsTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    action: PointAction
+    points: int
+    description: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Badge(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    badge_type: BadgeType
+    earned_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ConsultationSession(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    professional_id: str
+    status: ConsultationStatus = ConsultationStatus.SCHEDULED
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_minutes: int = 30
+    notes: str = ""
+    recommendations: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Professional(BaseModel):
@@ -106,6 +173,8 @@ class Professional(BaseModel):
     bio: str
     hourly_rate: float = 30.0
     commission_pending: float = 125.0  # Demo commission
+    total_earnings: float = 850.0
+    active_consultations: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Appointment(BaseModel):
@@ -135,6 +204,19 @@ class CartAddRequest(BaseModel):
     product_id: str
     quantity: int = 1
 
+class PointsAddRequest(BaseModel):
+    action: PointAction
+    description: Optional[str] = None
+    amount_spent: Optional[float] = None  # For purchase-based points
+
+class ConsultationStartRequest(BaseModel):
+    client_id: str
+
+class ConsultationCompleteRequest(BaseModel):
+    consultation_id: str
+    notes: str
+    recommendations: str
+
 class OrderCreateRequest(BaseModel):
     user_email: str
     user_name: str
@@ -151,12 +233,29 @@ class UserResponse(BaseModel):
     name: str
     role: UserRole
     points: int
+    total_points_earned: int
+    level: str
+
+class PointsHistoryResponse(BaseModel):
+    transactions: List[PointsTransaction]
+    total_points: int
+    current_level: str
+    next_level_threshold: int
+    progress_percentage: float
+
+class LeaderboardEntry(BaseModel):
+    name: str
+    points: int
+    level: str
+    rank: int
 
 class DashboardClientResponse(BaseModel):
     user: UserResponse
     upcoming_appointments: List[dict] = []
     recommended_products: List[Product] = []
     recent_orders: List[Order] = []
+    recent_points: List[PointsTransaction] = []
+    badges: List[Badge] = []
 
 class DashboardProfessionalResponse(BaseModel):
     user: UserResponse
@@ -164,6 +263,8 @@ class DashboardProfessionalResponse(BaseModel):
     assigned_clients: List[dict] = []
     upcoming_appointments: List[dict] = []
     commission_pending: float = 125.0
+    total_earnings: float = 850.0
+    active_consultations: List[ConsultationSession] = []
 
 # Helper functions
 def prepare_for_mongo(data):
@@ -180,6 +281,12 @@ def parse_from_mongo(item):
         item['updated_at'] = datetime.fromisoformat(item['updated_at'])
     if isinstance(item.get('scheduled_date'), str):
         item['scheduled_date'] = datetime.fromisoformat(item['scheduled_date'])
+    if isinstance(item.get('start_time'), str):
+        item['start_time'] = datetime.fromisoformat(item['start_time'])
+    if isinstance(item.get('end_time'), str):
+        item['end_time'] = datetime.fromisoformat(item['end_time'])
+    if isinstance(item.get('earned_at'), str):
+        item['earned_at'] = datetime.fromisoformat(item['earned_at'])
     return item
 
 # Auth helper functions
@@ -221,6 +328,94 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if user is None:
         raise credentials_exception
     return User(**parse_from_mongo(user))
+
+# Points system helper functions
+def calculate_level(total_points):
+    if total_points >= 5000:
+        return "Elite"
+    elif total_points >= 1500:
+        return "Premium"
+    elif total_points >= 500:
+        return "Active"
+    else:
+        return "Beginner"
+
+def get_next_level_threshold(current_level):
+    thresholds = {
+        "Beginner": 500,
+        "Active": 1500,
+        "Premium": 5000,
+        "Elite": 10000
+    }
+    return thresholds.get(current_level, 10000)
+
+async def award_points(user_id: str, action: PointAction, description: str = None, amount_spent: float = None):
+    """Award points to user for specific actions"""
+    if action == PointAction.PURCHASE and amount_spent:
+        points = int(amount_spent * POINT_VALUES[PointAction.PURCHASE])
+    else:
+        points = POINT_VALUES.get(action, 0)
+    
+    if points > 0:
+        # Create points transaction
+        transaction = PointsTransaction(
+            user_id=user_id,
+            action=action,
+            points=points,
+            description=description or f"Points earned for {action.value}"
+        )
+        
+        transaction_dict = prepare_for_mongo(transaction.dict())
+        await db.points_transactions.insert_one(transaction_dict)
+        
+        # Update user points
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$inc": {
+                    "points": points,
+                    "total_points_earned": points
+                }
+            }
+        )
+        
+        # Update user level
+        user = await db.users.find_one({"id": user_id})
+        new_level = calculate_level(user["total_points_earned"])
+        if user["level"] != new_level:
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {"level": new_level}}
+            )
+            
+            # Award badge if needed
+            await award_badge_if_eligible(user_id, new_level)
+        
+        print(f"🏆 {points} puntos otorgados a usuario {user_id} por {action.value}")
+        return points
+    return 0
+
+async def award_badge_if_eligible(user_id: str, level: str):
+    """Award badge based on user level"""
+    badge_mapping = {
+        "Active": BadgeType.ACTIVE,
+        "Premium": BadgeType.PREMIUM,
+        "Elite": BadgeType.ELITE
+    }
+    
+    badge_type = badge_mapping.get(level)
+    if badge_type:
+        # Check if user already has this badge
+        existing_badge = await db.badges.find_one({
+            "user_id": user_id,
+            "badge_type": badge_type
+        })
+        
+        if not existing_badge:
+            badge = Badge(user_id=user_id, badge_type=badge_type)
+            badge_dict = prepare_for_mongo(badge.dict())
+            await db.badges.insert_one(badge_dict)
+            print(f"🎖️ Badge {badge_type.value} otorgado a usuario {user_id}")
 
 # Initialize demo products and users on startup
 demo_products = [
@@ -311,6 +506,9 @@ async def register_user(user_data: UserRegister):
         professional_dict = prepare_for_mongo(professional.dict())
         await db.professionals.insert_one(professional_dict)
     
+    # Award registration points
+    await award_points(user.id, PointAction.REGISTRATION, "Bienvenido a HealthLoop Nexus!")
+    
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -325,7 +523,9 @@ async def register_user(user_data: UserRegister):
             "email": user.email,
             "name": user.name,
             "role": user.role,
-            "points": user.points
+            "points": user.points + POINT_VALUES[PointAction.REGISTRATION],
+            "total_points_earned": user.total_points_earned + POINT_VALUES[PointAction.REGISTRATION],
+            "level": calculate_level(user.total_points_earned + POINT_VALUES[PointAction.REGISTRATION])
         }
     }
 
@@ -351,7 +551,9 @@ async def login_user(user_data: UserLogin):
             "email": user_obj.email,
             "name": user_obj.name,
             "role": user_obj.role,
-            "points": user_obj.points
+            "points": user_obj.points,
+            "total_points_earned": user_obj.total_points_earned,
+            "level": user_obj.level
         }
     }
 
@@ -362,8 +564,163 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         email=current_user.email,
         name=current_user.name,
         role=current_user.role,
-        points=current_user.points
+        points=current_user.points,
+        total_points_earned=current_user.total_points_earned,
+        level=current_user.level
     )
+
+# Points system endpoints
+@api_router.post("/points/add")
+async def add_points(request: PointsAddRequest, current_user: User = Depends(get_current_user)):
+    """Add points to user account for specific actions"""
+    description = request.description or f"Points earned for {request.action.value}"
+    points_awarded = await award_points(current_user.id, request.action, description, request.amount_spent)
+    
+    return {
+        "message": f"¡{points_awarded} puntos agregados!",
+        "points_awarded": points_awarded,
+        "action": request.action
+    }
+
+@api_router.get("/points/history", response_model=PointsHistoryResponse)
+async def get_points_history(current_user: User = Depends(get_current_user)):
+    """Get user's points history and progress"""
+    # Get recent transactions
+    transactions = await db.points_transactions.find(
+        {"user_id": current_user.id}
+    ).sort("created_at", -1).to_list(20)
+    
+    transactions_list = [PointsTransaction(**parse_from_mongo(t)) for t in transactions]
+    
+    # Calculate progress to next level
+    current_threshold = get_next_level_threshold(current_user.level)
+    
+    if current_user.level == "Elite":
+        progress_percentage = 100
+    else:
+        previous_threshold = BADGE_THRESHOLDS.get(BadgeType(current_user.level.lower()), 0)
+        progress_percentage = min(100, ((current_user.total_points_earned - previous_threshold) / (current_threshold - previous_threshold)) * 100)
+    
+    return PointsHistoryResponse(
+        transactions=transactions_list,
+        total_points=current_user.points,
+        current_level=current_user.level,
+        next_level_threshold=current_threshold,
+        progress_percentage=round(progress_percentage, 1)
+    )
+
+@api_router.get("/leaderboard")
+async def get_leaderboard():
+    """Get top users leaderboard"""
+    users = await db.users.find().sort("total_points_earned", -1).limit(10).to_list(10)
+    
+    leaderboard = []
+    for i, user_data in enumerate(users):
+        leaderboard.append(LeaderboardEntry(
+            name=user_data["name"],
+            points=user_data["total_points_earned"],
+            level=user_data["level"],
+            rank=i + 1
+        ))
+    
+    return {"leaderboard": leaderboard}
+
+@api_router.get("/badges")
+async def get_user_badges(current_user: User = Depends(get_current_user)):
+    """Get user's earned badges"""
+    badges = await db.badges.find({"user_id": current_user.id}).to_list(length=None)
+    return {"badges": [Badge(**parse_from_mongo(badge)) for badge in badges]}
+
+# Consultation endpoints
+@api_router.post("/consultations/start")
+async def start_consultation(request: ConsultationStartRequest, current_user: User = Depends(get_current_user)):
+    """Start a new consultation session"""
+    if current_user.role != UserRole.PROFESSIONAL:
+        raise HTTPException(status_code=403, detail="Only professionals can start consultations")
+    
+    # Create consultation session
+    consultation = ConsultationSession(
+        client_id=request.client_id,
+        professional_id=current_user.id,
+        status=ConsultationStatus.IN_PROGRESS,
+        start_time=datetime.now(timezone.utc)
+    )
+    
+    consultation_dict = prepare_for_mongo(consultation.dict())
+    await db.consultations.insert_one(consultation_dict)
+    
+    # Update professional active consultations
+    await db.professionals.update_one(
+        {"user_id": current_user.id},
+        {"$inc": {"active_consultations": 1}}
+    )
+    
+    return {
+        "message": "Consulta iniciada exitosamente",
+        "consultation_id": consultation.id,
+        "start_time": consultation.start_time,
+        "duration_minutes": consultation.duration_minutes
+    }
+
+@api_router.put("/consultations/complete")
+async def complete_consultation(request: ConsultationCompleteRequest, current_user: User = Depends(get_current_user)):
+    """Complete a consultation with notes and recommendations"""
+    if current_user.role != UserRole.PROFESSIONAL:
+        raise HTTPException(status_code=403, detail="Only professionals can complete consultations")
+    
+    # Update consultation
+    await db.consultations.update_one(
+        {"id": request.consultation_id, "professional_id": current_user.id},
+        {
+            "$set": {
+                "status": ConsultationStatus.COMPLETED,
+                "end_time": datetime.now(timezone.utc).isoformat(),
+                "notes": request.notes,
+                "recommendations": request.recommendations
+            }
+        }
+    )
+    
+    # Get consultation to award points to client
+    consultation = await db.consultations.find_one({"id": request.consultation_id})
+    if consultation:
+        # Award points to client
+        await award_points(
+            consultation["client_id"], 
+            PointAction.COMPLETE_CONSULTATION, 
+            f"Consulta completada con {current_user.name}"
+        )
+        
+        # Update professional stats
+        await db.professionals.update_one(
+            {"user_id": current_user.id},
+            {
+                "$inc": {
+                    "active_consultations": -1,
+                    "total_earnings": 30.0  # Add consultation fee
+                }
+            }
+        )
+    
+    return {
+        "message": "Consulta completada exitosamente",
+        "points_awarded_to_client": POINT_VALUES[PointAction.COMPLETE_CONSULTATION]
+    }
+
+@api_router.get("/consultations/active")
+async def get_active_consultations(current_user: User = Depends(get_current_user)):
+    """Get active consultations for professional"""
+    if current_user.role != UserRole.PROFESSIONAL:
+        raise HTTPException(status_code=403, detail="Only professionals can view consultations")
+    
+    consultations = await db.consultations.find({
+        "professional_id": current_user.id,
+        "status": ConsultationStatus.IN_PROGRESS
+    }).to_list(length=None)
+    
+    return {
+        "active_consultations": [ConsultationSession(**parse_from_mongo(c)) for c in consultations]
+    }
 
 # Dashboard endpoints
 @api_router.get("/dashboard/client", response_model=DashboardClientResponse)
@@ -378,6 +735,16 @@ async def get_client_dashboard(current_user: User = Depends(get_current_user)):
     # Get recent orders
     orders = await db.orders.find({"user_id": current_user.id}).sort("created_at", -1).to_list(5)
     recent_orders = [Order(**parse_from_mongo(order)) for order in orders]
+    
+    # Get recent points
+    recent_points = await db.points_transactions.find(
+        {"user_id": current_user.id}
+    ).sort("created_at", -1).to_list(5)
+    recent_points_list = [PointsTransaction(**parse_from_mongo(t)) for t in recent_points]
+    
+    # Get badges
+    badges = await db.badges.find({"user_id": current_user.id}).to_list(length=None)
+    badges_list = [Badge(**parse_from_mongo(badge)) for badge in badges]
     
     # Mock upcoming appointments
     upcoming_appointments = [
@@ -397,11 +764,15 @@ async def get_client_dashboard(current_user: User = Depends(get_current_user)):
             email=current_user.email,
             name=current_user.name,
             role=current_user.role,
-            points=current_user.points
+            points=current_user.points,
+            total_points_earned=current_user.total_points_earned,
+            level=current_user.level
         ),
         upcoming_appointments=upcoming_appointments,
         recommended_products=recommended_products,
-        recent_orders=recent_orders
+        recent_orders=recent_orders,
+        recent_points=recent_points_list,
+        badges=badges_list
     )
 
 @api_router.get("/dashboard/professional", response_model=DashboardProfessionalResponse)
@@ -416,21 +787,35 @@ async def get_professional_dashboard(current_user: User = Depends(get_current_us
     
     professional_obj = Professional(**parse_from_mongo(professional))
     
-    # Mock assigned clients
+    # Get active consultations
+    active_consultations = await db.consultations.find({
+        "professional_id": current_user.id,
+        "status": ConsultationStatus.IN_PROGRESS
+    }).to_list(length=None)
+    
+    active_consultations_list = [ConsultationSession(**parse_from_mongo(c)) for c in active_consultations]
+    
+    # Mock assigned clients with enhanced data
     assigned_clients = [
         {
             "id": "client-1",
             "name": "María López",
             "objective": "Pérdida de peso",
             "start_date": "2025-01-15",
-            "progress": "75%"
+            "progress": "75%",
+            "points": 850,
+            "level": "Active",
+            "last_consultation": "2025-09-20"
         },
         {
             "id": "client-2", 
             "name": "Carlos Ruiz",
             "objective": "Ganar masa muscular",
             "start_date": "2025-02-01",
-            "progress": "45%"
+            "progress": "45%",
+            "points": 420,
+            "level": "Beginner",
+            "last_consultation": "2025-09-18"
         }
     ]
     
@@ -439,6 +824,7 @@ async def get_professional_dashboard(current_user: User = Depends(get_current_us
         {
             "id": "appt-prof-1",
             "client_name": "María López",
+            "client_points": 850,
             "date": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(),
             "duration": 30,
             "type": "Follow-up"
@@ -446,6 +832,7 @@ async def get_professional_dashboard(current_user: User = Depends(get_current_us
         {
             "id": "appt-prof-2",
             "client_name": "Carlos Ruiz",
+            "client_points": 420,
             "date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
             "duration": 30,
             "type": "Initial Consultation"
@@ -458,7 +845,9 @@ async def get_professional_dashboard(current_user: User = Depends(get_current_us
             email=current_user.email,
             name=current_user.name,
             role=current_user.role,
-            points=current_user.points
+            points=current_user.points,
+            total_points_earned=current_user.total_points_earned,
+            level=current_user.level
         ),
         professional_info={
             "type": professional_obj.professional_type,
@@ -467,7 +856,9 @@ async def get_professional_dashboard(current_user: User = Depends(get_current_us
         },
         assigned_clients=assigned_clients,
         upcoming_appointments=upcoming_appointments,
-        commission_pending=professional_obj.commission_pending
+        commission_pending=professional_obj.commission_pending,
+        total_earnings=professional_obj.total_earnings,
+        active_consultations=active_consultations_list
     )
 
 # Products endpoints
@@ -563,6 +954,9 @@ async def create_order(current_user: User = Depends(get_current_user)):
         if product:
             total += product["price"] * item["quantity"]
     
+    # Check if this is first purchase
+    existing_orders = await db.orders.count_documents({"user_id": current_user.id})
+    
     # Create order
     order = Order(
         user_id=current_user.id,
@@ -574,19 +968,19 @@ async def create_order(current_user: User = Depends(get_current_user)):
     order = prepare_for_mongo(order)
     await db.orders.insert_one(order)
     
-    # Award points (10 points per dollar spent)
-    points_earned = int(total * 10)
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$inc": {"points": points_earned}}
-    )
+    # Award points based on purchase
+    if existing_orders == 0:
+        # First purchase bonus
+        await award_points(current_user.id, PointAction.FIRST_PURCHASE, "¡Primera compra completada!")
+    
+    # Award points for amount spent
+    await award_points(current_user.id, PointAction.PURCHASE, f"Compra por ${total}", total)
     
     # Clear cart after order
     await db.carts.delete_one({"user_id": current_user.id})
     
     print(f"📧 Email enviado a {current_user.email}")
     print(f"🎉 Orden #{order['id']} completada exitosamente")
-    print(f"🏆 {points_earned} puntos otorgados!")
     
     return Order(**parse_from_mongo(order))
 
@@ -602,6 +996,8 @@ async def init_demo_data():
     await db.products.delete_many({})
     await db.users.delete_many({})
     await db.professionals.delete_many({})
+    await db.points_transactions.delete_many({})
+    await db.badges.delete_many({})
     
     # Insert demo products
     products_to_insert = []
@@ -612,13 +1008,16 @@ async def init_demo_data():
     
     await db.products.insert_many(products_to_insert)
     
-    # Create demo users
+    # Create demo users with enhanced data
     demo_users = [
         {
             "email": "cliente@healthloop.com",
             "name": "Ana García",
             "password": "demo123",
-            "role": UserRole.CLIENT
+            "role": UserRole.CLIENT,
+            "points": 650,
+            "total_points_earned": 1200,
+            "level": "Active"
         },
         {
             "email": "nutricionista@healthloop.com", 
@@ -626,7 +1025,10 @@ async def init_demo_data():
             "password": "demo123",
             "role": UserRole.PROFESSIONAL,
             "professional_type": ProfessionalType.NUTRITIONIST,
-            "specialization": "Nutrición Deportiva"
+            "specialization": "Nutrición Deportiva",
+            "points": 300,
+            "total_points_earned": 800,
+            "level": "Active"
         },
         {
             "email": "entrenador@healthloop.com",
@@ -634,7 +1036,10 @@ async def init_demo_data():
             "password": "demo123",
             "role": UserRole.PROFESSIONAL,
             "professional_type": ProfessionalType.TRAINER,
-            "specialization": "Entrenamiento Funcional"
+            "specialization": "Entrenamiento Funcional",
+            "points": 150,
+            "total_points_earned": 400,
+            "level": "Beginner"
         }
     ]
     
@@ -643,7 +1048,10 @@ async def init_demo_data():
             email=user_data["email"],
             name=user_data["name"],
             role=user_data["role"],
-            password_hash=get_password_hash(user_data["password"])
+            password_hash=get_password_hash(user_data["password"]),
+            points=user_data.get("points", 150),
+            total_points_earned=user_data.get("total_points_earned", 150),
+            level=user_data.get("level", "Beginner")
         )
         
         user_dict = prepare_for_mongo(user.dict())
@@ -659,13 +1067,40 @@ async def init_demo_data():
             )
             professional_dict = prepare_for_mongo(professional.dict())
             await db.professionals.insert_one(professional_dict)
+        
+        # Add demo points transactions
+        demo_transactions = [
+            {"action": PointAction.REGISTRATION, "points": 100, "description": "Registro completado"},
+            {"action": PointAction.COMPLETE_PROFILE, "points": 50, "description": "Perfil completado"},
+            {"action": PointAction.FIRST_PURCHASE, "points": 200, "description": "Primera compra"},
+        ]
+        
+        for transaction_data in demo_transactions:
+            if user_data.get("total_points_earned", 0) >= sum(t["points"] for t in demo_transactions):
+                transaction = PointsTransaction(
+                    user_id=user.id,
+                    action=transaction_data["action"],
+                    points=transaction_data["points"],
+                    description=transaction_data["description"]
+                )
+                transaction_dict = prepare_for_mongo(transaction.dict())
+                await db.points_transactions.insert_one(transaction_dict)
+        
+        # Award badges based on level
+        if user.level in ["Active", "Premium", "Elite"]:
+            badge = Badge(
+                user_id=user.id,
+                badge_type=BadgeType.ACTIVE if user.level == "Active" else BadgeType.PREMIUM if user.level == "Premium" else BadgeType.ELITE
+            )
+            badge_dict = prepare_for_mongo(badge.dict())
+            await db.badges.insert_one(badge_dict)
     
     return {
-        "message": f"Initialized {len(demo_products)} products and {len(demo_users)} demo users",
+        "message": f"Initialized {len(demo_products)} products, {len(demo_users)} demo users with points system",
         "demo_accounts": [
-            {"email": "cliente@healthloop.com", "password": "demo123", "role": "client"},
-            {"email": "nutricionista@healthloop.com", "password": "demo123", "role": "nutritionist"},
-            {"email": "entrenador@healthloop.com", "password": "demo123", "role": "trainer"}
+            {"email": "cliente@healthloop.com", "password": "demo123", "role": "client", "points": 650, "level": "Active"},
+            {"email": "nutricionista@healthloop.com", "password": "demo123", "role": "nutritionist", "points": 300, "level": "Active"},
+            {"email": "entrenador@healthloop.com", "password": "demo123", "role": "trainer", "points": 150, "level": "Beginner"}
         ]
     }
 
