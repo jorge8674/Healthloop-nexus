@@ -1,15 +1,18 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional, Annotated
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -18,6 +21,15 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# JWT Configuration
+SECRET_KEY = "your-secret-key-health-loop-nexus-2025"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -37,6 +49,14 @@ class OrderStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+
+class UserRole(str, Enum):
+    CLIENT = "client"
+    PROFESSIONAL = "professional"
+
+class ProfessionalType(str, Enum):
+    NUTRITIONIST = "nutritionist"
+    TRAINER = "trainer"
 
 # Models
 class Product(BaseModel):
@@ -72,11 +92,46 @@ class Order(BaseModel):
 
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: str
+    email: EmailStr
     name: str
+    role: UserRole
+    password_hash: str
+    points: int = 150  # Initial points
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Create models for requests
+class Professional(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    professional_type: ProfessionalType
+    specialization: str
+    bio: str
+    hourly_rate: float = 30.0
+    commission_pending: float = 125.0  # Demo commission
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Appointment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    professional_id: str
+    scheduled_date: datetime
+    duration_minutes: int = 30
+    status: str = "scheduled"
+    notes: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Request Models
+class UserRegister(BaseModel):
+    email: EmailStr
+    name: str
+    password: str
+    role: UserRole
+    professional_type: Optional[ProfessionalType] = None
+    specialization: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 class CartAddRequest(BaseModel):
     product_id: str
     quantity: int = 1
@@ -84,6 +139,32 @@ class CartAddRequest(BaseModel):
 class OrderCreateRequest(BaseModel):
     user_email: str
     user_name: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: dict
+
+# Response Models
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: UserRole
+    points: int
+
+class DashboardClientResponse(BaseModel):
+    user: UserResponse
+    upcoming_appointments: List[dict] = []
+    recommended_products: List[Product] = []
+    recent_orders: List[Order] = []
+
+class DashboardProfessionalResponse(BaseModel):
+    user: UserResponse
+    professional_info: dict
+    assigned_clients: List[dict] = []
+    upcoming_appointments: List[dict] = []
+    commission_pending: float = 125.0
 
 # Helper functions
 def prepare_for_mongo(data):
@@ -98,9 +179,48 @@ def parse_from_mongo(item):
         item['created_at'] = datetime.fromisoformat(item['created_at'])
     if isinstance(item.get('updated_at'), str):
         item['updated_at'] = datetime.fromisoformat(item['updated_at'])
+    if isinstance(item.get('scheduled_date'), str):
+        item['scheduled_date'] = datetime.fromisoformat(item['scheduled_date'])
     return item
 
-# Initialize demo products on startup
+# Auth helper functions
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = await db.users.find_one({"id": user_id})
+    if user is None:
+        raise credentials_exception
+    return User(**parse_from_mongo(user))
+
+# Initialize demo products and users on startup
 demo_products = [
     {
         "name": "Plan Keto Completo",
@@ -159,10 +279,197 @@ demo_products = [
 async def root():
     return {"message": "HealthLoop Nexus API - Ready!"}
 
+# Auth endpoints
+@api_router.post("/auth/register", response_model=Token)
+async def register_user(user_data: UserRegister):
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        role=user_data.role,
+        password_hash=get_password_hash(user_data.password)
+    )
+    
+    user_dict = prepare_for_mongo(user.dict())
+    await db.users.insert_one(user_dict)
+    
+    # If professional, create professional profile
+    if user_data.role == UserRole.PROFESSIONAL and user_data.professional_type:
+        professional = Professional(
+            user_id=user.id,
+            professional_type=user_data.professional_type,
+            specialization=user_data.specialization or "General"
+        )
+        professional_dict = prepare_for_mongo(professional.dict())
+        await db.professionals.insert_one(professional_dict)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "points": user.points
+        }
+    }
+
+@api_router.post("/auth/login", response_model=Token)
+async def login_user(user_data: UserLogin):
+    user = await db.users.find_one({"email": user_data.email})
+    if not user or not verify_password(user_data.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    user_obj = User(**parse_from_mongo(user))
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_obj.id}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user_obj.id,
+            "email": user_obj.email,
+            "name": user_obj.name,
+            "role": user_obj.role,
+            "points": user_obj.points
+        }
+    }
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        role=current_user.role,
+        points=current_user.points
+    )
+
+# Dashboard endpoints
+@api_router.get("/dashboard/client", response_model=DashboardClientResponse)
+async def get_client_dashboard(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.CLIENT:
+        raise HTTPException(status_code=403, detail="Access forbidden - clients only")
+    
+    # Get recommended products (first 3)
+    products = await db.products.find().to_list(3)
+    recommended_products = [Product(**parse_from_mongo(product)) for product in products]
+    
+    # Get recent orders
+    orders = await db.orders.find({"user_id": current_user.id}).sort("created_at", -1).to_list(5)
+    recent_orders = [Order(**parse_from_mongo(order)) for order in orders]
+    
+    # Mock upcoming appointments
+    upcoming_appointments = [
+        {
+            "id": "appt-1",
+            "professional_name": "Dr. María García",
+            "professional_type": "Nutricionista",
+            "date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
+            "duration": 30,
+            "status": "scheduled"
+        }
+    ]
+    
+    return DashboardClientResponse(
+        user=UserResponse(
+            id=current_user.id,
+            email=current_user.email,
+            name=current_user.name,
+            role=current_user.role,
+            points=current_user.points
+        ),
+        upcoming_appointments=upcoming_appointments,
+        recommended_products=recommended_products,
+        recent_orders=recent_orders
+    )
+
+@api_router.get("/dashboard/professional", response_model=DashboardProfessionalResponse)
+async def get_professional_dashboard(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.PROFESSIONAL:
+        raise HTTPException(status_code=403, detail="Access forbidden - professionals only")
+    
+    # Get professional info
+    professional = await db.professionals.find_one({"user_id": current_user.id})
+    if not professional:
+        raise HTTPException(status_code=404, detail="Professional profile not found")
+    
+    professional_obj = Professional(**parse_from_mongo(professional))
+    
+    # Mock assigned clients
+    assigned_clients = [
+        {
+            "id": "client-1",
+            "name": "María López",
+            "objective": "Pérdida de peso",
+            "start_date": "2025-01-15",
+            "progress": "75%"
+        },
+        {
+            "id": "client-2", 
+            "name": "Carlos Ruiz",
+            "objective": "Ganar masa muscular",
+            "start_date": "2025-02-01",
+            "progress": "45%"
+        }
+    ]
+    
+    # Mock upcoming appointments
+    upcoming_appointments = [
+        {
+            "id": "appt-prof-1",
+            "client_name": "María López",
+            "date": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(),
+            "duration": 30,
+            "type": "Follow-up"
+        },
+        {
+            "id": "appt-prof-2",
+            "client_name": "Carlos Ruiz",
+            "date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+            "duration": 30,
+            "type": "Initial Consultation"
+        }
+    ]
+    
+    return DashboardProfessionalResponse(
+        user=UserResponse(
+            id=current_user.id,
+            email=current_user.email,
+            name=current_user.name,
+            role=current_user.role,
+            points=current_user.points
+        ),
+        professional_info={
+            "type": professional_obj.professional_type,
+            "specialization": professional_obj.specialization,
+            "hourly_rate": professional_obj.hourly_rate
+        },
+        assigned_clients=assigned_clients,
+        upcoming_appointments=upcoming_appointments,
+        commission_pending=professional_obj.commission_pending
+    )
+
 # Products endpoints
 @api_router.get("/products", response_model=List[Product])
 async def get_products(diet_type: Optional[str] = None):
-    """Get all products, optionally filtered by diet type"""
     query = {}
     if diet_type:
         query["diet_type"] = diet_type
@@ -172,28 +479,22 @@ async def get_products(diet_type: Optional[str] = None):
 
 @api_router.get("/products/{product_id}", response_model=Product)
 async def get_product(product_id: str):
-    """Get a specific product by ID"""
     product = await db.products.find_one({"id": product_id})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return Product(**parse_from_mongo(product))
 
-# Cart endpoints
+# Cart endpoints (now with user authentication)
 @api_router.post("/cart/add")
-async def add_to_cart(request: CartAddRequest):
-    """Add item to cart (session-based for now)"""
+async def add_to_cart(request: CartAddRequest, current_user: User = Depends(get_current_user)):
     # Verify product exists
     product = await db.products.find_one({"id": request.product_id})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    # For demo purposes, we'll use a session-based cart
-    # In production, this would be user-specific
-    session_id = "demo_session"
-    
-    cart = await db.carts.find_one({"user_id": session_id})
+    cart = await db.carts.find_one({"user_id": current_user.id})
     if not cart:
-        cart = Cart(user_id=session_id, items=[]).dict()
+        cart = Cart(user_id=current_user.id, items=[]).dict()
         cart = prepare_for_mongo(cart)
         await db.carts.insert_one(cart)
     
@@ -205,31 +506,25 @@ async def add_to_cart(request: CartAddRequest):
             break
     
     if existing_item:
-        # Update quantity
         await db.carts.update_one(
-            {"user_id": session_id, "items.product_id": request.product_id},
+            {"user_id": current_user.id, "items.product_id": request.product_id},
             {"$inc": {"items.$.quantity": request.quantity}}
         )
     else:
-        # Add new item
         new_item = CartItem(product_id=request.product_id, quantity=request.quantity).dict()
         await db.carts.update_one(
-            {"user_id": session_id},
+            {"user_id": current_user.id},
             {"$push": {"items": new_item}}
         )
     
     return {"message": "Item added to cart successfully"}
 
 @api_router.get("/cart")
-async def get_cart():
-    """Get current cart with product details"""
-    session_id = "demo_session"
-    
-    cart = await db.carts.find_one({"user_id": session_id})
+async def get_cart(current_user: User = Depends(get_current_user)):
+    cart = await db.carts.find_one({"user_id": current_user.id})
     if not cart:
         return {"items": [], "total": 0}
     
-    # Enrich cart items with product details
     enriched_items = []
     total = 0
     
@@ -247,20 +542,14 @@ async def get_cart():
     return {"items": enriched_items, "total": round(total, 2)}
 
 @api_router.delete("/cart/clear")
-async def clear_cart():
-    """Clear the current cart"""
-    session_id = "demo_session"
-    await db.carts.delete_one({"user_id": session_id})
+async def clear_cart(current_user: User = Depends(get_current_user)):
+    await db.carts.delete_one({"user_id": current_user.id})
     return {"message": "Cart cleared successfully"}
 
 # Orders endpoints
 @api_router.post("/orders", response_model=Order)
-async def create_order(request: OrderCreateRequest):
-    """Create order from current cart (DEMO MODE)"""
-    session_id = "demo_session"
-    
-    # Get current cart
-    cart = await db.carts.find_one({"user_id": session_id})
+async def create_order(current_user: User = Depends(get_current_user)):
+    cart = await db.carts.find_one({"user_id": current_user.id})
     if not cart or not cart.get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")
     
@@ -273,37 +562,43 @@ async def create_order(request: OrderCreateRequest):
     
     # Create order
     order = Order(
-        user_id=session_id,
+        user_id=current_user.id,
         items=cart["items"],
         total_amount=round(total, 2),
-        status=OrderStatus.COMPLETED  # Demo mode - instant completion
+        status=OrderStatus.COMPLETED
     ).dict()
     
     order = prepare_for_mongo(order)
     await db.orders.insert_one(order)
     
-    # Clear cart after order
-    await db.carts.delete_one({"user_id": session_id})
+    # Award points (10 points per dollar spent)
+    points_earned = int(total * 10)
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$inc": {"points": points_earned}}
+    )
     
-    # Demo notification
-    print(f"📧 Email enviado a {request.user_email}")
-    print(f"🎉 Orden #{order['id']} completada exitosamente (Demo)")
+    # Clear cart after order
+    await db.carts.delete_one({"user_id": current_user.id})
+    
+    print(f"📧 Email enviado a {current_user.email}")
+    print(f"🎉 Orden #{order['id']} completada exitosamente")
+    print(f"🏆 {points_earned} puntos otorgados!")
     
     return Order(**parse_from_mongo(order))
 
 @api_router.get("/orders", response_model=List[Order])
-async def get_orders():
-    """Get all orders for current session"""
-    session_id = "demo_session"
-    orders = await db.orders.find({"user_id": session_id}).to_list(length=None)
+async def get_orders(current_user: User = Depends(get_current_user)):
+    orders = await db.orders.find({"user_id": current_user.id}).sort("created_at", -1).to_list(length=None)
     return [Order(**parse_from_mongo(order)) for order in orders]
 
 # Initialize database with demo data
 @api_router.post("/init-demo-data")
 async def init_demo_data():
-    """Initialize database with demo products"""
-    # Clear existing products
+    # Clear existing data
     await db.products.delete_many({})
+    await db.users.delete_many({})
+    await db.professionals.delete_many({})
     
     # Insert demo products
     products_to_insert = []
@@ -314,7 +609,61 @@ async def init_demo_data():
     
     await db.products.insert_many(products_to_insert)
     
-    return {"message": f"Initialized {len(demo_products)} demo products"}
+    # Create demo users
+    demo_users = [
+        {
+            "email": "cliente@healthloop.com",
+            "name": "Ana García",
+            "password": "demo123",
+            "role": UserRole.CLIENT
+        },
+        {
+            "email": "nutricionista@healthloop.com", 
+            "name": "Dr. María López",
+            "password": "demo123",
+            "role": UserRole.PROFESSIONAL,
+            "professional_type": ProfessionalType.NUTRITIONIST,
+            "specialization": "Nutrición Deportiva"
+        },
+        {
+            "email": "entrenador@healthloop.com",
+            "name": "Carlos Fitness",
+            "password": "demo123",
+            "role": UserRole.PROFESSIONAL,
+            "professional_type": ProfessionalType.TRAINER,
+            "specialization": "Entrenamiento Funcional"
+        }
+    ]
+    
+    for user_data in demo_users:
+        user = User(
+            email=user_data["email"],
+            name=user_data["name"],
+            role=user_data["role"],
+            password_hash=get_password_hash(user_data["password"])
+        )
+        
+        user_dict = prepare_for_mongo(user.dict())
+        await db.users.insert_one(user_dict)
+        
+        # Create professional profile if needed
+        if user_data["role"] == UserRole.PROFESSIONAL:
+            professional = Professional(
+                user_id=user.id,
+                professional_type=user_data["professional_type"],
+                specialization=user_data["specialization"]
+            )
+            professional_dict = prepare_for_mongo(professional.dict())
+            await db.professionals.insert_one(professional_dict)
+    
+    return {
+        "message": f"Initialized {len(demo_products)} products and {len(demo_users)} demo users",
+        "demo_accounts": [
+            {"email": "cliente@healthloop.com", "password": "demo123", "role": "client"},
+            {"email": "nutricionista@healthloop.com", "password": "demo123", "role": "nutritionist"},
+            {"email": "entrenador@healthloop.com", "password": "demo123", "role": "trainer"}
+        ]
+    }
 
 # Include the router in the main app
 app.include_router(api_router)
