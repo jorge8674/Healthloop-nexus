@@ -305,7 +305,8 @@ async def register_user(user_data: UserRegister):
         professional = Professional(
             user_id=user.id,
             professional_type=user_data.professional_type,
-            specialization=user_data.specialization or "General"
+            specialization=user_data.specialization or "General",
+            bio=f"Especialista en {user_data.specialization or 'General'}"
         )
         professional_dict = prepare_for_mongo(professional.dict())
         await db.professionals.insert_one(professional_dict)
