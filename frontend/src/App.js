@@ -1647,9 +1647,7 @@ const Marketplace = () => {
   };
 
   const addToCart = async (productId, quantity = 1) => {
-    const { user, loading } = useAuth();
-    
-    if (loading) {
+    if (authLoading) {
       toast.info('Verificando autenticación...');
       return;
     }
