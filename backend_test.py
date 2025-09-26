@@ -474,14 +474,15 @@ class HealthLoopTester:
                 items = verify_data.get('items', [])
                 total = verify_data.get('total', 0)
                 
-                # Check if our product was added
+                # Check if our product was added (cart structure has nested product object)
                 product_found = False
                 for item in items:
-                    if item.get('product_id') == test_product['id'] or item.get('product_name') == test_product['name']:
+                    product_info = item.get('product', {})
+                    if product_info.get('id') == test_product['id'] or product_info.get('name') == test_product['name']:
                         product_found = True
-                        print(f"   ✅ Product found in cart: {item.get('product_name', 'Unknown')}")
+                        print(f"   ✅ Product found in cart: {product_info.get('name', 'Unknown')}")
                         print(f"   📊 Quantity: {item.get('quantity', 0)}")
-                        print(f"   💰 Item total: ${item.get('item_total', 0)}")
+                        print(f"   💰 Item subtotal: ${item.get('subtotal', 0)}")
                         break
                 
                 if product_found:
@@ -489,6 +490,7 @@ class HealthLoopTester:
                     self.log_result("Cart Verification", True, "Item successfully added and verified in cart")
                 else:
                     self.log_result("Cart Verification", False, "Product not found in cart after adding")
+                    print(f"   🔍 Debug - Cart items structure: {items}")
                     return False
             else:
                 self.log_result("Cart Verification", False, f"Failed with status {verify_response.status_code}")
