@@ -187,15 +187,140 @@ class Order(BaseModel):
     status: OrderStatus = OrderStatus.PENDING
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Membership configuration
+MEMBERSHIP_BENEFITS = {
+    MembershipLevel.BASIC: {
+        "price": 499,
+        "duration": "annual",
+        "consultations_per_month": 1,
+        "video_categories": ["Cardio"],
+        "monthly_points": 100,
+        "data_sharing": ConsentLevel.BASIC,
+        "meal_planning": False
+    },
+    MembershipLevel.PREMIUM: {
+        "price": 799,
+        "duration": "annual", 
+        "consultations_per_month": 3,
+        "video_categories": ["Cardio", "Fuerza", "Yoga", "Nutrición"],
+        "monthly_points": 300,
+        "data_sharing": ConsentLevel.COMPLETE,
+        "meal_planning": "basic"
+    },
+    MembershipLevel.ELITE: {
+        "price": 1250,
+        "duration": "lifetime",
+        "consultations_per_month": -1,  # Unlimited
+        "video_categories": ["Cardio", "Fuerza", "Yoga", "Nutrición"],
+        "monthly_points": 500,
+        "data_sharing": ConsentLevel.COMPLETE_WITH_ANALYTICS,
+        "meal_planning": "advanced"
+    }
+}
+
+# Personal Data Models
+class PersonalData(BaseModel):
+    first_name: str
+    last_name: str
+    date_of_birth: Optional[str] = None
+    gender: Optional[Gender] = None
+    phone: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+class AnthropometricData(BaseModel):
+    weight_kg: Optional[float] = None
+    height_cm: Optional[float] = None
+    waist_circumference: Optional[float] = None
+    hip_circumference: Optional[float] = None
+    arm_circumference: Optional[float] = None
+    body_fat_percentage: Optional[float] = None
+    muscle_mass_percentage: Optional[float] = None
+
+class HealthHistory(BaseModel):
+    food_allergies: List[str] = []
+    food_intolerances: List[str] = []
+    medical_conditions: List[str] = []
+    current_medications: List[str] = []
+    is_pregnant: Optional[bool] = None
+    is_breastfeeding: Optional[bool] = None
+    # PAR-Q questionnaire
+    heart_problems: Optional[bool] = None
+    chest_pain: Optional[bool] = None
+    loss_of_balance: Optional[bool] = None
+    bone_joint_problems: Optional[bool] = None
+    blood_pressure_medication: Optional[bool] = None
+    doctor_advised_no_exercise: Optional[bool] = None
+
+class Habits(BaseModel):
+    activity_level: Optional[ActivityLevel] = None
+    sleep_hours_per_night: Optional[int] = None
+    water_glasses_per_day: Optional[int] = None
+    meals_outside_home_per_week: Optional[int] = None
+    usual_meal_times: Optional[List[str]] = []
+    smoking: Optional[bool] = None
+    alcohol_frequency: Optional[str] = None
+
+class Goals(BaseModel):
+    weight_loss: bool = False
+    muscle_gain: bool = False
+    maintenance: bool = False
+    sports_performance: bool = False
+    medical_management: bool = False
+    target_weight: Optional[float] = None
+    timeline_months: Optional[int] = None
+    specific_goals: List[str] = []
+
+class Address(BaseModel):
+    street: str
+    city: str
+    state: str
+    postal_code: str
+    country: str = "México"
+    delivery_instructions: Optional[str] = None
+
+class ConsentSettings(BaseModel):
+    trainer_basic_data: bool = False
+    trainer_anthropometric: bool = False
+    trainer_fitness_evaluation: bool = False
+    trainer_progress_tracking: bool = False
+    nutritionist_basic_data: bool = False
+    nutritionist_dietary_history: bool = False
+    nutritionist_medical_conditions: bool = False
+    nutritionist_progress_tracking: bool = False
+    both_general_progress: bool = False
+    both_integrated_data: bool = False
+    data_analytics: bool = False
+    marketing_communications: bool = False
+
+class UserProfile(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    personal_data: PersonalData
+    anthropometric_data: Optional[AnthropometricData] = None
+    health_history: Optional[HealthHistory] = None
+    habits: Optional[Habits] = None
+    goals: Optional[Goals] = None
+    shipping_address: Optional[Address] = None
+    billing_address: Optional[Address] = None
+    consent_settings: Optional[ConsentSettings] = None
+    onboarding_completed: bool = False
+    onboarding_step: int = 1
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     name: str
     role: UserRole
     password_hash: str
+    membership_level: MembershipLevel = MembershipLevel.BASIC
     points: int = 150  # Initial points
     total_points_earned: int = 150
     level: str = "Beginner"
+    consultations_used_this_month: int = 0
+    membership_start_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class PointsTransaction(BaseModel):
