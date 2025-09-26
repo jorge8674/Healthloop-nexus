@@ -285,6 +285,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ VIDEO GALLERY COMPLETELY INACCESSIBLE: Exhaustive testing confirms video gallery is completely broken. Navigation to /videos triggers immediate redirect to auth page due to authentication failures. Cannot access video content at all. Even after successful login, attempting to navigate to videos page results in session breakdown and redirect back to auth. Users cannot view videos, cannot access categorization, cannot earn points from video completion. Video gallery functionality is completely non-functional due to persistent JWT authentication issues. This breaks the entire video-based engagement and points system."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ VIDEO GALLERY REMAINS COMPLETELY INACCESSIBLE AFTER AXIOS SIMPLIFICATION: Navigation to /videos still triggers immediate redirect to auth page. Video gallery functionality is completely blocked for users. Despite stable initial authentication, attempting to access videos breaks the session. Users cannot view video content, cannot access categorization features, cannot earn points from video completion. This breaks the entire video-based engagement system and gamification features. Video gallery remains completely non-functional."
 
   - task: "Marketplace Flow"
     implemented: true
