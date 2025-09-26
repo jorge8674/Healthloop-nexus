@@ -1185,7 +1185,7 @@ async def complete_video(video_id: str, current_user: User = Depends(get_current
     """Mark video as completed and award points"""
     try:
         # Award 50 points for video completion using existing award_points function
-        points_awarded = await award_points(current_user.id, PointAction.COMPLETE_CONSULTATION, "Video completado exitosamente")
+        points_awarded = await award_points(current_user.id, PointAction.VIDEO_COMPLETION, "Video completado exitosamente")
         
         return {
             "message": "Video completado exitosamente",
