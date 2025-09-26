@@ -828,8 +828,268 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         role=current_user.role,
         points=current_user.points,
         total_points_earned=current_user.total_points_earned,
-        level=current_user.level
+        level=current_user.level,
+        membership_level=current_user.membership_level
     )
+
+# Onboarding endpoints
+@api_router.post("/onboarding/step1")
+async def update_onboarding_step1(request: OnboardingStep1Request, current_user: User = Depends(get_current_user)):
+    """Save personal data (Step 1 of onboarding)"""
+    try:
+        # Get or create user profile
+        profile = await db.user_profiles.find_one({"user_id": current_user.id})
+        
+        personal_data = PersonalData(**request.dict())
+        
+        if profile:
+            # Update existing profile
+            await db.user_profiles.update_one(
+                {"user_id": current_user.id},
+                {"$set": {
+                    "personal_data": prepare_for_mongo(personal_data.dict()),
+                    "onboarding_step": 2,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        else:
+            # Create new profile
+            new_profile = UserProfile(
+                user_id=current_user.id,
+                personal_data=personal_data,
+                onboarding_step=2
+            )
+            await db.user_profiles.insert_one(prepare_for_mongo(new_profile.dict()))
+        
+        return {"message": "Información personal guardada exitosamente", "next_step": 2}
+    except Exception as e:
+        logger.error(f"Error saving step 1: {e}")
+        raise HTTPException(status_code=500, detail="Error al guardar información personal")
+
+@api_router.post("/onboarding/step2")
+async def update_onboarding_step2(request: OnboardingStep2Request, current_user: User = Depends(get_current_user)):
+    """Save anthropometric and health data (Step 2)"""
+    try:
+        # Separate anthropometric and health data
+        anthropometric_fields = {
+            'weight_kg', 'height_cm', 'waist_circumference', 'hip_circumference',
+            'arm_circumference', 'body_fat_percentage', 'muscle_mass_percentage'
+        }
+        
+        health_fields = {
+            'food_allergies', 'food_intolerances', 'medical_conditions', 
+            'current_medications', 'is_pregnant', 'is_breastfeeding'
+        }
+        
+        anthro_data = {k: v for k, v in request.dict().items() if k in anthropometric_fields}
+        health_data = {k: v for k, v in request.dict().items() if k in health_fields}
+        
+        anthropometric = AnthropometricData(**anthro_data) if any(anthro_data.values()) else None
+        health_history = HealthHistory(**health_data) if any(health_data.values()) else None
+        
+        await db.user_profiles.update_one(
+            {"user_id": current_user.id},
+            {"$set": {
+                "anthropometric_data": prepare_for_mongo(anthropometric.dict()) if anthropometric else None,
+                "health_history": prepare_for_mongo(health_history.dict()) if health_history else None,
+                "onboarding_step": 3,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        return {"message": "Datos de salud guardados exitosamente", "next_step": 3}
+    except Exception as e:
+        logger.error(f"Error saving step 2: {e}")
+        raise HTTPException(status_code=500, detail="Error al guardar datos de salud")
+
+@api_router.post("/onboarding/step3")
+async def update_onboarding_step3(request: OnboardingStep3Request, current_user: User = Depends(get_current_user)):
+    """Save goals and habits (Step 3)"""
+    try:
+        # Separate goals and habits
+        goals_fields = {
+            'weight_loss', 'muscle_gain', 'maintenance', 'sports_performance',
+            'medical_management', 'target_weight', 'timeline_months', 'specific_goals'
+        }
+        
+        habits_fields = {
+            'activity_level', 'sleep_hours_per_night', 'water_glasses_per_day'
+        }
+        
+        goals_data = {k: v for k, v in request.dict().items() if k in goals_fields}
+        habits_data = {k: v for k, v in request.dict().items() if k in habits_fields}
+        
+        goals = Goals(**goals_data)
+        habits = Habits(**habits_data)
+        
+        await db.user_profiles.update_one(
+            {"user_id": current_user.id},
+            {"$set": {
+                "goals": prepare_for_mongo(goals.dict()),
+                "habits": prepare_for_mongo(habits.dict()),
+                "onboarding_step": 4,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        return {"message": "Objetivos y hábitos guardados exitosamente", "next_step": 4}
+    except Exception as e:
+        logger.error(f"Error saving step 3: {e}")
+        raise HTTPException(status_code=500, detail="Error al guardar objetivos y hábitos")
+
+@api_router.post("/onboarding/step4")
+async def update_onboarding_step4(request: OnboardingStep4Request, current_user: User = Depends(get_current_user)):
+    """Save PAR-Q evaluation and dietary habits (Step 4)"""
+    try:
+        # Get existing health history
+        profile = await db.user_profiles.find_one({"user_id": current_user.id})
+        existing_health = profile.get("health_history", {}) if profile else {}
+        
+        # Update health history with PAR-Q data
+        health_update = {**existing_health, **request.dict()}
+        health_history = HealthHistory(**health_update)
+        
+        # Also update habits
+        existing_habits = profile.get("habits", {}) if profile else {}
+        habits_update = {**existing_habits}
+        
+        # Add new habit fields
+        for field in ['meals_outside_home_per_week', 'usual_meal_times', 'smoking', 'alcohol_frequency']:
+            if hasattr(request, field):
+                habits_update[field] = getattr(request, field)
+        
+        habits = Habits(**habits_update)
+        
+        await db.user_profiles.update_one(
+            {"user_id": current_user.id},
+            {"$set": {
+                "health_history": prepare_for_mongo(health_history.dict()),
+                "habits": prepare_for_mongo(habits.dict()),
+                "onboarding_step": 5,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        return {"message": "Evaluación de salud guardada exitosamente", "next_step": 5}
+    except Exception as e:
+        logger.error(f"Error saving step 4: {e}")
+        raise HTTPException(status_code=500, detail="Error al guardar evaluación de salud")
+
+@api_router.post("/onboarding/step5")
+async def update_onboarding_step5(request: OnboardingStep5Request, current_user: User = Depends(get_current_user)):
+    """Save addresses and consent settings (Step 5 - Final step)"""
+    try:
+        # Extract consent fields
+        consent_fields = {
+            'trainer_basic_data', 'trainer_anthropometric', 'trainer_fitness_evaluation',
+            'trainer_progress_tracking', 'nutritionist_basic_data', 'nutritionist_dietary_history',
+            'nutritionist_medical_conditions', 'nutritionist_progress_tracking',
+            'both_general_progress', 'both_integrated_data', 'data_analytics',
+            'marketing_communications'
+        }
+        
+        consent_data = {k: v for k, v in request.dict().items() if k in consent_fields}
+        consent_settings = ConsentSettings(**consent_data)
+        
+        # Prepare billing address (use shipping if not provided)
+        billing_addr = request.billing_address or request.shipping_address
+        
+        await db.user_profiles.update_one(
+            {"user_id": current_user.id},
+            {"$set": {
+                "shipping_address": prepare_for_mongo(request.shipping_address.dict()),
+                "billing_address": prepare_for_mongo(billing_addr.dict()),
+                "consent_settings": prepare_for_mongo(consent_settings.dict()),
+                "onboarding_completed": True,
+                "onboarding_step": 6,  # Completed
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Award points for completing onboarding
+        await award_points(current_user.id, PointAction.COMPLETE_PROFILE, "Onboarding completado")
+        
+        return {"message": "¡Onboarding completado exitosamente! +50 puntos ganados", "completed": True}
+    except Exception as e:
+        logger.error(f"Error saving step 5: {e}")
+        raise HTTPException(status_code=500, detail="Error al completar onboarding")
+
+@api_router.get("/onboarding/status")
+async def get_onboarding_status(current_user: User = Depends(get_current_user)):
+    """Get current onboarding status and progress"""
+    try:
+        profile = await db.user_profiles.find_one({"user_id": current_user.id})
+        
+        if not profile:
+            return {
+                "onboarding_completed": False,
+                "current_step": 1,
+                "progress_percentage": 0
+            }
+        
+        step = profile.get("onboarding_step", 1)
+        completed = profile.get("onboarding_completed", False)
+        progress = min((step - 1) * 20, 100) if not completed else 100
+        
+        return {
+            "onboarding_completed": completed,
+            "current_step": step,
+            "progress_percentage": progress,
+            "profile_data": {
+                "personal_data": profile.get("personal_data"),
+                "anthropometric_data": profile.get("anthropometric_data"),
+                "health_history": profile.get("health_history"),
+                "habits": profile.get("habits"),
+                "goals": profile.get("goals"),
+                "shipping_address": profile.get("shipping_address"),
+                "consent_settings": profile.get("consent_settings")
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting onboarding status: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener estado del onboarding")
+
+# Membership endpoints
+@api_router.get("/memberships/plans")
+async def get_membership_plans():
+    """Get available membership plans and benefits"""
+    return {
+        "plans": MEMBERSHIP_BENEFITS,
+        "current_promotions": {
+            "premium_discount": "20% off first year",
+            "elite_bonus": "3 meses gratis de consultas"
+        }
+    }
+
+@api_router.post("/memberships/upgrade")
+async def upgrade_membership(new_level: MembershipLevel, current_user: User = Depends(get_current_user)):
+    """Upgrade user membership level"""
+    try:
+        if new_level == current_user.membership_level:
+            raise HTTPException(status_code=400, detail="Ya tienes este nivel de membresía")
+        
+        # Update user membership
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {
+                "membership_level": new_level.value,
+                "membership_start_date": datetime.now(timezone.utc).isoformat(),
+                "consultations_used_this_month": 0
+            }}
+        )
+        
+        # Award bonus points for upgrade
+        bonus_points = MEMBERSHIP_BENEFITS[new_level]["monthly_points"]
+        await award_points(current_user.id, PointAction.COMPLETE_PROFILE, f"Upgrade to {new_level.value}", bonus_points)
+        
+        return {
+            "message": f"¡Membresía actualizada a {new_level.value}!",
+            "new_benefits": MEMBERSHIP_BENEFITS[new_level],
+            "bonus_points": bonus_points
+        }
+    except Exception as e:
+        logger.error(f"Error upgrading membership: {e}")
+        raise HTTPException(status_code=500, detail="Error al actualizar membresía")
 
 # Points system endpoints
 @api_router.post("/points/add")
