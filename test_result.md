@@ -240,9 +240,9 @@ backend:
 frontend:
   - task: "Authentication Flow"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -258,6 +258,9 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ JWT AUTHENTICATION FIX SUCCESSFUL! Root cause identified and resolved: 1) Extended JWT token expiration from 30 minutes to 8 hours for testing, 2) Removed duplicate cart endpoints that were causing routing conflicts, 3) Verified JWT token storage and validation working correctly. Login with cliente@healthloop.com/demo123 works perfectly. Dashboard loads with user data (Ana García, 650 pts, Active level). Token persists in localStorage. Individual API calls to /api/auth/me, /api/cart, /api/dashboard/client all return 200 OK. Core authentication flow is now functional."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL AUTHENTICATION BREAKDOWN CONFIRMED: Exhaustive testing reveals JWT authentication is completely broken. While login initially succeeds (JWT token stored, redirected to dashboard), ALL subsequent API calls to /api/auth/me return 401 Unauthorized immediately. This causes complete session breakdown within seconds of login. User data displays briefly then disappears. Navigation to marketplace/videos triggers immediate redirect to auth page. The axios interceptor retry mechanism (2 retries) fails consistently. JWT token validation is fundamentally broken on backend, making entire authenticated experience non-functional. Previous 'fix' was ineffective - authentication remains critically broken."
 
   - task: "Video Gallery Flow"
     implemented: true
