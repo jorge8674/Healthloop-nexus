@@ -242,7 +242,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 3
+    stuck_count: 4
     priority: "high"
     needs_retesting: false
     status_history:
@@ -267,6 +267,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "⚠️ RACE CONDITION FIXES PARTIALLY SUCCESSFUL: Comprehensive 4-phase testing reveals significant improvements but new issues. IMPROVEMENTS: ✅ Protected routes (/cart, /videos) no longer redirect to auth, ✅ Session stable during rapid navigation, ✅ No 401 errors during navigation, ✅ Concurrent API calls succeed (200 OK). REMAINING ISSUES: ❌ Pages stuck in 'Verificando autenticación...' loading state, ❌ Session lost after page refresh, ❌ Cannot test AddToCart due to loading state. The authReadyPromise mechanism appears to prevent pages from loading properly despite backend APIs working correctly. Core race conditions resolved but loading state mechanism needs fixing."
+        - working: false
+        - agent: "testing"
+        - comment: "🔍 CRITICAL CART FIX VALIDATION COMPLETED - MIXED RESULTS: LOGIN FLOW ✅ WORKING: Demo button works correctly, email/password populate (cliente@healthloop.com/demo123), login succeeds with redirect to dashboard, JWT token saved, user data displays (650 pts, Active level). CART ACCESS ✅ WORKING: Cart page accessible without auth redirect, shows empty state correctly. MARKETPLACE/ADDTOCART ❌ CRITICAL FAILURE: Products API returns 200 OK but marketplace shows 0 'Agregar al Carrito' buttons, authentication breaks during navigation (401 error on /api/auth/me), axios interceptor triggers redirect to auth. VIDEO GALLERY ❌ CRITICAL FAILURE: Videos page redirects to auth immediately, JWT token gets cleared. ROOT CAUSE: JWT token persistence problem during navigation - token works initially but gets cleared/invalidated when navigating to marketplace/videos pages. Session breakdown confirmed during cross-page navigation."
 
   - task: "Video Gallery Flow"
     implemented: true
