@@ -505,6 +505,15 @@ const NavigationHeader = () => {
                 </Button>
                 <Button
                   variant="ghost"
+                  onClick={() => navigate('/videos')}
+                  className="text-gray-600 hover:text-purple-600"
+                  data-testid="videos-nav-btn"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Videos
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => navigate('/dashboard')}
                   className="text-gray-600 hover:text-blue-600"
                 >
