@@ -374,6 +374,7 @@ test_plan:
     - "Authentication Flow"
     - "Marketplace Flow"
     - "Video Gallery Flow"
+    - "Cart Functionality"
   test_all: false
   test_priority: "stuck_first"
 
