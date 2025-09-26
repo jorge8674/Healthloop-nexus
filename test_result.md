@@ -309,6 +309,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ MARKETPLACE COMPLETELY NON-FUNCTIONAL: Exhaustive deep investigation confirms marketplace is completely broken. Despite backend /api/products working correctly, frontend marketplace shows ZERO products, ZERO 'Agregar al Carrito' buttons, ZERO diet filters. Authentication failures cause immediate redirect to auth page when accessing /marketplace. Even after successful login, marketplace remains empty due to persistent 401 errors on /api/auth/me calls. No product cards, no product names, no prices, no images display. Users see completely empty marketplace page. AddToCart functionality cannot be tested as no products are visible. This is a complete marketplace breakdown affecting core e-commerce functionality."
+        - working: false
+        - agent: "testing"
+        - comment: "⚠️ PARTIAL IMPROVEMENT AFTER AXIOS SIMPLIFICATION: Products now load correctly (5 products visible with proper images, prices, ingredients). Navigation to marketplace works without auth redirect. However, cart functionality remains broken - 'Agregar al Carrito' buttons show 'Debes iniciar sesión' error despite user being authenticated. This indicates authentication context is lost during cart operations. Diet filters not found. While product display is fixed, e-commerce functionality (add to cart) is still non-functional due to authentication issues during API calls."
 
   - task: "Navigation & UX"
     implemented: true
