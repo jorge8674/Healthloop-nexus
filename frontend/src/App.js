@@ -25,7 +25,7 @@ import './App.css';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Configure axios interceptors for JWT
+// Configure axios interceptors for JWT - SIMPLIFIED VERSION
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -39,28 +39,17 @@ axios.interceptors.request.use(
   }
 );
 
+// SIMPLIFIED response interceptor - no retries
 axios.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
+    // Only redirect on 401 for non-login requests
     if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
-      // Only clear token and redirect if it's not a login request and we get multiple 401s
-      const failedUrl = error.config.url;
-      console.warn(`API call failed: ${failedUrl}`, error.response?.status);
-      
-      // Allow 2 retries before clearing token
-      if (!error.config.__retryCount) {
-        error.config.__retryCount = 0;
-      }
-      
-      if (error.config.__retryCount < 2) {
-        error.config.__retryCount += 1;
-        return axios(error.config);
-      } else {
-        localStorage.removeItem('token');
-        window.location.href = '/auth';
-      }
+      console.error('Authentication failed, redirecting to login');
+      localStorage.removeItem('token');
+      window.location.href = '/auth';
     }
     return Promise.reject(error);
   }
