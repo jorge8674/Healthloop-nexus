@@ -366,6 +366,181 @@ class HealthLoopTester:
         except Exception as e:
             self.log_result("Professional Functionality", False, "Request failed", str(e))
             return False
+
+    def test_cart_endpoints_focused(self):
+        """Focused test for cart endpoints as requested"""
+        print("\n🛒 FOCUSED CART ENDPOINT TESTING")
+        print("=" * 50)
+        
+        # Step 1: Login and get token with cliente@healthloop.com / demo123
+        print("🔐 Step 1: Login and get JWT token")
+        try:
+            login_data = {
+                "email": "cliente@healthloop.com",
+                "password": "demo123"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                cart_auth_token = data.get('access_token')
+                cart_user_data = data.get('user')
+                
+                print(f"   ✅ Login successful for {cart_user_data['name']}")
+                print(f"   🔑 JWT Token: {cart_auth_token[:30]}...")
+                print(f"   👤 User ID: {cart_user_data['id']}")
+                
+                # Create new session for cart testing
+                cart_session = requests.Session()
+                cart_session.headers.update({'Authorization': f'Bearer {cart_auth_token}'})
+                
+            else:
+                self.log_result("Cart Login", False, f"Login failed with status {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart Login", False, "Login request failed", str(e))
+            return False
+        
+        # Step 2: Get available products first
+        print("\n📦 Step 2: Get available products")
+        try:
+            products_response = self.session.get(f"{API_BASE}/products")
+            if products_response.status_code == 200:
+                products = products_response.json()
+                if products:
+                    test_product = products[0]  # Use first product for testing
+                    print(f"   ✅ Found {len(products)} products")
+                    print(f"   🎯 Using test product: {test_product['name']} (ID: {test_product['id']})")
+                else:
+                    self.log_result("Cart Products", False, "No products available for testing")
+                    return False
+            else:
+                self.log_result("Cart Products", False, f"Products API failed with status {products_response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart Products", False, "Failed to get products", str(e))
+            return False
+        
+        # Step 3: Test GET /api/cart with Authorization header
+        print("\n🛒 Step 3: Test GET /api/cart with authentication")
+        try:
+            cart_response = cart_session.get(f"{API_BASE}/cart")
+            
+            if cart_response.status_code == 200:
+                cart_data = cart_response.json()
+                print(f"   ✅ GET /api/cart successful")
+                print(f"   📊 Cart items: {len(cart_data.get('items', []))}")
+                print(f"   💰 Cart total: ${cart_data.get('total', 0)}")
+                self.log_result("Cart GET with Auth", True, "Cart retrieved successfully")
+            else:
+                self.log_result("Cart GET with Auth", False, f"Failed with status {cart_response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart GET with Auth", False, "Request failed", str(e))
+            return False
+        
+        # Step 4: Test POST /api/cart/add with product_id and Authorization header
+        print("\n➕ Step 4: Test POST /api/cart/add with authentication")
+        try:
+            add_to_cart_data = {
+                "product_id": test_product['id'],
+                "quantity": 2
+            }
+            
+            add_response = cart_session.post(f"{API_BASE}/cart/add", json=add_to_cart_data)
+            
+            if add_response.status_code == 200:
+                add_data = add_response.json()
+                print(f"   ✅ POST /api/cart/add successful")
+                print(f"   📦 Added: {test_product['name']} (Qty: 2)")
+                print(f"   💬 Message: {add_data.get('message', 'No message')}")
+                self.log_result("Cart ADD with Auth", True, "Product added to cart successfully")
+            else:
+                self.log_result("Cart ADD with Auth", False, f"Failed with status {add_response.status_code}")
+                print(f"   ❌ Response: {add_response.text}")
+                return False
+        except Exception as e:
+            self.log_result("Cart ADD with Auth", False, "Request failed", str(e))
+            return False
+        
+        # Step 5: Test GET /api/cart again to verify item was added
+        print("\n🔍 Step 5: Verify item was added to cart")
+        try:
+            verify_response = cart_session.get(f"{API_BASE}/cart")
+            
+            if verify_response.status_code == 200:
+                verify_data = verify_response.json()
+                items = verify_data.get('items', [])
+                total = verify_data.get('total', 0)
+                
+                # Check if our product was added
+                product_found = False
+                for item in items:
+                    if item.get('product_id') == test_product['id'] or item.get('product_name') == test_product['name']:
+                        product_found = True
+                        print(f"   ✅ Product found in cart: {item.get('product_name', 'Unknown')}")
+                        print(f"   📊 Quantity: {item.get('quantity', 0)}")
+                        print(f"   💰 Item total: ${item.get('item_total', 0)}")
+                        break
+                
+                if product_found:
+                    print(f"   💰 Cart total: ${total}")
+                    self.log_result("Cart Verification", True, "Item successfully added and verified in cart")
+                else:
+                    self.log_result("Cart Verification", False, "Product not found in cart after adding")
+                    return False
+            else:
+                self.log_result("Cart Verification", False, f"Failed with status {verify_response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart Verification", False, "Request failed", str(e))
+            return False
+        
+        # Step 6: Test error cases - GET /api/cart without Authorization header (should return 401)
+        print("\n🚫 Step 6: Test GET /api/cart without Authorization (should return 401)")
+        try:
+            no_auth_session = requests.Session()  # No auth header
+            no_auth_response = no_auth_session.get(f"{API_BASE}/cart")
+            
+            if no_auth_response.status_code == 401:
+                print(f"   ✅ Correctly returned 401 Unauthorized")
+                self.log_result("Cart No Auth Error", True, "Correctly rejected request without authentication")
+            else:
+                print(f"   ❌ Expected 401, got {no_auth_response.status_code}")
+                self.log_result("Cart No Auth Error", False, f"Expected 401, got {no_auth_response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart No Auth Error", False, "Request failed", str(e))
+            return False
+        
+        # Step 7: Test POST /api/cart/add with invalid product_id
+        print("\n❌ Step 7: Test POST /api/cart/add with invalid product_id")
+        try:
+            invalid_product_data = {
+                "product_id": "invalid-product-id-12345",
+                "quantity": 1
+            }
+            
+            invalid_response = cart_session.post(f"{API_BASE}/cart/add", json=invalid_product_data)
+            
+            if invalid_response.status_code == 404:
+                print(f"   ✅ Correctly returned 404 for invalid product")
+                self.log_result("Cart Invalid Product Error", True, "Correctly rejected invalid product_id")
+            elif invalid_response.status_code == 400:
+                print(f"   ✅ Correctly returned 400 for invalid product")
+                self.log_result("Cart Invalid Product Error", True, "Correctly rejected invalid product_id")
+            else:
+                print(f"   ❌ Expected 404/400, got {invalid_response.status_code}")
+                print(f"   📝 Response: {invalid_response.text}")
+                self.log_result("Cart Invalid Product Error", False, f"Expected 404/400, got {invalid_response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Cart Invalid Product Error", False, "Request failed", str(e))
+            return False
+        
+        print("\n🎉 CART ENDPOINT TESTING COMPLETED SUCCESSFULLY!")
+        return True
     
     def run_all_tests(self):
         """Run all backend tests"""
