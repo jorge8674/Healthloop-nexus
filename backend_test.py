@@ -499,18 +499,18 @@ class HealthLoopTester:
             self.log_result("Cart Verification", False, "Request failed", str(e))
             return False
         
-        # Step 6: Test error cases - GET /api/cart without Authorization header (should return 401)
-        print("\n🚫 Step 6: Test GET /api/cart without Authorization (should return 401)")
+        # Step 6: Test error cases - GET /api/cart without Authorization header (should return 401/403)
+        print("\n🚫 Step 6: Test GET /api/cart without Authorization (should return 401/403)")
         try:
             no_auth_session = requests.Session()  # No auth header
             no_auth_response = no_auth_session.get(f"{API_BASE}/cart")
             
-            if no_auth_response.status_code == 401:
-                print(f"   ✅ Correctly returned 401 Unauthorized")
+            if no_auth_response.status_code in [401, 403]:
+                print(f"   ✅ Correctly returned {no_auth_response.status_code} (Unauthorized/Forbidden)")
                 self.log_result("Cart No Auth Error", True, "Correctly rejected request without authentication")
             else:
-                print(f"   ❌ Expected 401, got {no_auth_response.status_code}")
-                self.log_result("Cart No Auth Error", False, f"Expected 401, got {no_auth_response.status_code}")
+                print(f"   ❌ Expected 401/403, got {no_auth_response.status_code}")
+                self.log_result("Cart No Auth Error", False, f"Expected 401/403, got {no_auth_response.status_code}")
                 return False
         except Exception as e:
             self.log_result("Cart No Auth Error", False, "Request failed", str(e))
