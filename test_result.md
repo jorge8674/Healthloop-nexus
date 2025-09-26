@@ -321,11 +321,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Authentication Flow"
-    - "Video Gallery Flow"
-    - "Marketplace Flow"
-    - "Navigation & UX"
-    - "Points System Integration"
+    - "Registration with Membership Levels"
+    - "Onboarding Flow (Steps 1-5)"
+    - "Membership System"
+    - "Updated User Info with Membership"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
