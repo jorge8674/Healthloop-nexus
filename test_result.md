@@ -341,7 +341,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -351,6 +351,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "⚠️ INTERMITTENT ISSUE: Cart API endpoints are functional when tested individually (all return 200 OK), but fail intermittently during normal app usage. The issue is that when the Marketplace component loads, it makes a call to /api/cart which sometimes returns 401 Unauthorized. This triggers the axios response interceptor to remove the JWT token and redirect to auth, breaking the entire session. The cart functionality itself works correctly when authentication is stable."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CART FUNCTIONALITY SEVERELY LIMITED: Deep investigation shows cart page is accessible after login and displays 'Tu carrito está vacío' (empty cart) message correctly. However, NO cart functionality is available: 0 cart items, 0 quantity controls, 0 remove buttons, 0 checkout buttons, 0 form fields. Cart remains perpetually empty because marketplace AddToCart buttons are non-functional due to authentication issues. Users cannot add products to cart, cannot modify quantities, cannot proceed to checkout. Cart page exists but provides no functional e-commerce capabilities. This is a complete cart flow breakdown."
 
 metadata:
   created_by: "testing_agent"
