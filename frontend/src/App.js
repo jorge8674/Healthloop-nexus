@@ -44,9 +44,23 @@ axios.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/auth';
+    if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
+      // Only clear token and redirect if it's not a login request and we get multiple 401s
+      const failedUrl = error.config.url;
+      console.warn(`API call failed: ${failedUrl}`, error.response?.status);
+      
+      // Allow 2 retries before clearing token
+      if (!error.config.__retryCount) {
+        error.config.__retryCount = 0;
+      }
+      
+      if (error.config.__retryCount < 2) {
+        error.config.__retryCount += 1;
+        return axios(error.config);
+      } else {
+        localStorage.removeItem('token');
+        window.location.href = '/auth';
+      }
     }
     return Promise.reject(error);
   }
