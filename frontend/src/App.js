@@ -179,11 +179,6 @@ const AuthProvider = ({ children }) => {
       }
     }
     setLoading(false);
-    
-    // Resolver el auth ready promise
-    if (authReadyResolve) {
-      authReadyResolve();
-    }
   };
 
   const login = async (email, password) => {
