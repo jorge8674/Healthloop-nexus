@@ -294,6 +294,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ CRITICAL: Marketplace completely broken due to authentication issues. Products API (/api/products) works fine (returns 10 products), but marketplace page shows NO products because authentication fails. No 'Add to Cart' buttons visible. Cart functionality broken with 401/403 errors. Authentication session loss prevents any marketplace interaction. User sees empty marketplace page despite products being available."
+        - working: false
+        - agent: "testing"
+        - comment: "⚠️ PARTIALLY WORKING: Marketplace page is accessible and authentication persists for navigation, but there's an intermittent issue with cart API calls. The /api/cart endpoint sometimes returns 401 Unauthorized when the marketplace loads, which triggers the axios interceptor to clear the JWT token and redirect to auth. This is a race condition issue where multiple API calls are made simultaneously during page load, and some fail. The core marketplace functionality works when cart API calls succeed."
 
   - task: "Navigation & UX"
     implemented: true
