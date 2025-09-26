@@ -258,9 +258,9 @@ frontend:
 
   - task: "Video Gallery Flow"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/components/VideoGallery.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -270,6 +270,9 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ Video Gallery working excellently. Found 8 demo videos with proper categorization. All category filters working (Cardio: 4 videos, Fuerza: 4 videos, Yoga: 4 videos, Nutrición: 4 videos). Video completion functionality working perfectly - user awarded +200 points (750→950) for completing video. Video modal opens correctly with YouTube embed. Progress tracking shows 1 video completed, 50 points from videos, 13% total progress."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL: Video Gallery completely empty due to authentication issues. No video elements found on /videos page. Authentication session loss prevents video content from loading. Page loads but shows no videos, categories, or interactive elements. User sees blank video gallery page."
 
   - task: "Marketplace Flow"
     implemented: true
