@@ -24,6 +24,106 @@ import './App.css';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Demo Videos Data
+const demoVideos = [
+  {
+    id: 'video-1',
+    title: 'Rutina Cardio Intenso 20min',
+    description: 'Quema grasa y mejora tu resistencia con esta rutina de cardio de alta intensidad.',
+    category: 'Cardio',
+    youtubeId: 'dQw4w9WgXcQ', // Demo YouTube ID
+    duration: 20,
+    points: 50,
+    difficulty: 'Intermedio',
+    equipment: 'Sin equipo',
+    instructor: 'Carlos Fitness'
+  },
+  {
+    id: 'video-2',
+    title: 'Yoga para Principiantes',
+    description: 'Sesión relajante de yoga perfecta para comenzar tu práctica de mindfulness.',
+    category: 'Yoga',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 30,
+    points: 50,
+    difficulty: 'Principiante',
+    equipment: 'Mat de yoga',
+    instructor: 'Ana Wellness'
+  },
+  {
+    id: 'video-3',
+    title: 'Fuerza Total Body',
+    description: 'Entrena todo tu cuerpo con ejercicios de fuerza usando peso corporal.',
+    category: 'Fuerza',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 25,
+    points: 50,
+    difficulty: 'Avanzado',
+    equipment: 'Pesas opcionales',
+    instructor: 'Carlos Fitness'
+  },
+  {
+    id: 'video-4',
+    title: 'Nutrición: Preparación de Batidos',
+    description: 'Aprende a preparar batidos nutritivos y deliciosos para tu día a día.',
+    category: 'Nutrición',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 15,
+    points: 50,
+    difficulty: 'Principiante',
+    equipment: 'Licuadora',
+    instructor: 'Dr. María López'
+  },
+  {
+    id: 'video-5',
+    title: 'HIIT Avanzado 15min',
+    description: 'Rutina de intervalos de alta intensidad para máximos resultados en poco tiempo.',
+    category: 'Cardio',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 15,
+    points: 50,
+    difficulty: 'Avanzado',
+    equipment: 'Sin equipo',
+    instructor: 'Carlos Fitness'
+  },
+  {
+    id: 'video-6',
+    title: 'Yoga Restaurativo',
+    description: 'Relaja tu cuerpo y mente con posturas suaves y respiración consciente.',
+    category: 'Yoga',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 35,
+    points: 50,
+    difficulty: 'Principiante',
+    equipment: 'Mat de yoga, cojines',
+    instructor: 'Ana Wellness'
+  },
+  {
+    id: 'video-7',
+    title: 'Fuerza de Brazos y Hombros',
+    description: 'Fortalece la parte superior de tu cuerpo con ejercicios específicos.',
+    category: 'Fuerza',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 20,
+    points: 50,
+    difficulty: 'Intermedio',
+    equipment: 'Pesas o botellas',
+    instructor: 'Carlos Fitness'
+  },
+  {
+    id: 'video-8',
+    title: 'Planificación de Comidas Saludables',
+    description: 'Guía práctica para planificar y preparar comidas nutritivas para la semana.',
+    category: 'Nutrición',
+    youtubeId: 'dQw4w9WgXcQ',
+    duration: 25,
+    points: 50,
+    difficulty: 'Principiante',
+    equipment: 'Ninguno',
+    instructor: 'Dr. María López'
+  }
+];
+
 // Auth Context
 const AuthContext = createContext();
 
