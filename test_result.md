@@ -177,6 +177,18 @@ backend:
         - agent: "testing"
         - comment: "Professional functionality working correctly. Professional users can login and access specialized dashboard. Professional dashboard shows type (nutritionist), specialization (Nutrición Deportiva), hourly rate ($30), assigned clients (2), and commission pending ($125). Consultation endpoints also available for professionals."
 
+  - task: "Cart Endpoints"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "Cart endpoints fully functional and tested comprehensively. GET /api/cart returns proper cart structure with nested product objects, quantities, subtotals, and total. POST /api/cart/add successfully adds products with authentication. Error handling working correctly: 403 for unauthenticated requests, 404 for invalid product_ids. Cart persistence working properly - items remain in cart after adding. Authentication via JWT tokens working perfectly. All 6 focused cart tests passed (100% success rate)."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
