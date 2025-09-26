@@ -284,7 +284,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -300,6 +300,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "⚠️ PARTIALLY WORKING: Marketplace page is accessible and authentication persists for navigation, but there's an intermittent issue with cart API calls. The /api/cart endpoint sometimes returns 401 Unauthorized when the marketplace loads, which triggers the axios interceptor to clear the JWT token and redirect to auth. This is a race condition issue where multiple API calls are made simultaneously during page load, and some fail. The core marketplace functionality works when cart API calls succeed."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ MARKETPLACE COMPLETELY NON-FUNCTIONAL: Exhaustive deep investigation confirms marketplace is completely broken. Despite backend /api/products working correctly, frontend marketplace shows ZERO products, ZERO 'Agregar al Carrito' buttons, ZERO diet filters. Authentication failures cause immediate redirect to auth page when accessing /marketplace. Even after successful login, marketplace remains empty due to persistent 401 errors on /api/auth/me calls. No product cards, no product names, no prices, no images display. Users see completely empty marketplace page. AddToCart functionality cannot be tested as no products are visible. This is a complete marketplace breakdown affecting core e-commerce functionality."
 
   - task: "Navigation & UX"
     implemented: true
