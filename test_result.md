@@ -309,9 +309,9 @@ frontend:
 
   - task: "Points System Integration"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -321,6 +321,21 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ Points System Integration working perfectly. Points display correctly in both navigation header and dashboard (700 pts initially). Level progression working - user at 'Active' level with proper level badge display. Points system functional: +50 pts for completing profile (700→750), +200 pts for completing video (750→950). Level progression from Beginner→Active confirmed. Points progress bar showing 80% progress to next level (1500 pts). Leaderboard showing top users with points and levels. All gamification features working correctly."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL: Points system broken due to authentication issues. User points and level not displaying in header after authentication session breaks. Dashboard shows no user data. Points-related API calls fail with 401 errors."
+
+  - task: "Cart Functionality"
+    implemented: true
+    working: false
+    file: "/app/frontend/src/App.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL: Cart functionality completely broken. /cart page loads but shows no content. GET /api/cart returns 401 Unauthorized due to authentication session issues. Add to cart buttons not functional. Cart page appears empty/non-functional to users."
 
 metadata:
   created_by: "testing_agent"
