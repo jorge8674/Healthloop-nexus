@@ -65,6 +65,7 @@ class PointAction(str, Enum):
     COMPLETE_PROFILE = "complete_profile"
     REFER_FRIEND = "refer_friend"
     COMPLETE_CONSULTATION = "complete_consultation"
+    VIDEO_COMPLETION = "video_completion"
 
 class BadgeType(str, Enum):
     BEGINNER = "beginner"
