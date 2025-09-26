@@ -16,7 +16,8 @@ import {
   ShoppingCart, Plus, Check, Star, Leaf, Heart, Zap, ShoppingBag, 
   User, LogOut, Calendar, TrendingUp, Users, DollarSign, 
   Award, Target, Clock, ChevronRight, Trophy, Timer, Play,
-  MessageSquare, FileText, BarChart3, Sparkles, Crown, Medal
+  MessageSquare, FileText, BarChart3, Sparkles, Crown, Medal,
+  Video, PlayCircle, CheckCircle, Filter, Search
 } from 'lucide-react';
 import './App.css';
 
