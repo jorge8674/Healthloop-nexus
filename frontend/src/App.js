@@ -19,6 +19,7 @@ import {
   MessageSquare, FileText, BarChart3, Sparkles, Crown, Medal,
   Video, PlayCircle, CheckCircle, Filter, Search
 } from 'lucide-react';
+import VideoGallery from './components/VideoGallery';
 import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
