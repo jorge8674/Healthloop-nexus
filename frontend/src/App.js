@@ -1647,6 +1647,13 @@ const Marketplace = () => {
   };
 
   const addToCart = async (productId, quantity = 1) => {
+    const { user, loading } = useAuth();
+    
+    if (loading) {
+      toast.info('Verificando autenticación...');
+      return;
+    }
+    
     if (!user) {
       toast.error('Debes iniciar sesión para agregar productos al carrito');
       navigate('/auth');
