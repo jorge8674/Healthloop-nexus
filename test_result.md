@@ -296,7 +296,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -318,6 +318,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "⚠️ PARTIAL IMPROVEMENT AFTER AXIOS SIMPLIFICATION: Products now load correctly (5 products visible with proper images, prices, ingredients). Navigation to marketplace works without auth redirect. However, cart functionality remains broken - 'Agregar al Carrito' buttons show 'Debes iniciar sesión' error despite user being authenticated. This indicates authentication context is lost during cart operations. Diet filters not found. While product display is fixed, e-commerce functionality (add to cart) is still non-functional due to authentication issues during API calls."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ MARKETPLACE STUCK IN LOADING STATE: Race condition testing reveals marketplace no longer redirects to auth (major improvement), but page is stuck on 'Verificando autenticación...' loading state. Cannot access products grid or test AddToCart functionality. Backend /api/products returns 200 OK, but frontend authReadyPromise mechanism prevents page from loading. This is a new issue where the loading state mechanism blocks access to marketplace content. Previous race condition redirects are fixed, but loading state needs resolution."
 
   - task: "Navigation & UX"
     implemented: true
