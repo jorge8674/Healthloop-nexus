@@ -1834,26 +1834,34 @@ const Marketplace = () => {
   );
 };
 
-// Cart Component (Enhanced with points display)
+// Cart Component (Enhanced with points display) - FIXED AUTH HANDLING
 const Cart = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [showCheckout, setShowCheckout] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [cartLoading, setCartLoading] = useState(true);
   const navigate = useNavigate();
-  const { user, updateUserPoints } = useAuth();
+  const { user, updateUserPoints, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    fetchCart();
-  }, [user]);
+    // Only fetch cart when auth is ready and user exists
+    if (!authLoading && user) {
+      fetchCart();
+    } else if (!authLoading && !user) {
+      // Auth is complete but no user - shouldn't happen due to ProtectedRoute
+      console.log('Cart: No user found after auth complete');
+      setCartLoading(false);
+    }
+  }, [user, authLoading]);
 
   const fetchCart = async () => {
     try {
+      console.log('Cart: Fetching cart for user:', user?.email);
       const response = await axios.get(`${API}/cart`);
       setCart(response.data);
-      setLoading(false);
+      setCartLoading(false);
     } catch (error) {
       console.error('Error fetching cart:', error);
-      setLoading(false);
+      setCartLoading(false);
     }
   };
 
