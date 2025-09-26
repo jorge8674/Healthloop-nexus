@@ -302,7 +302,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 3
+    stuck_count: 4
     priority: "high"
     needs_retesting: false
     status_history:
@@ -327,6 +327,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ MARKETPLACE STUCK IN LOADING STATE: Race condition testing reveals marketplace no longer redirects to auth (major improvement), but page is stuck on 'Verificando autenticación...' loading state. Cannot access products grid or test AddToCart functionality. Backend /api/products returns 200 OK, but frontend authReadyPromise mechanism prevents page from loading. This is a new issue where the loading state mechanism blocks access to marketplace content. Previous race condition redirects are fixed, but loading state needs resolution."
+        - working: false
+        - agent: "testing"
+        - comment: "🛍️ MARKETPLACE ADDTOCART CRITICAL FAILURE CONFIRMED: Comprehensive testing shows marketplace navigation works without auth redirect, but ZERO 'Agregar al Carrito' buttons found despite /api/products returning 200 OK with product data. Authentication breaks during marketplace navigation (401 error on /api/auth/me), causing axios interceptor to redirect to auth page. Products API works correctly but frontend fails to render AddToCart buttons. Cannot test cart functionality due to missing buttons. This confirms complete e-commerce flow breakdown - users cannot add products to cart despite products being available from backend."
 
   - task: "Navigation & UX"
     implemented: true
