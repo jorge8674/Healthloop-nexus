@@ -246,10 +246,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Authentication APIs"
-    - "Products APIs" 
-    - "Points System APIs"
-    - "User Management"
+    - "Authentication Flow"
+    - "Video Gallery Flow"
+    - "Marketplace Flow"
+    - "Navigation & UX"
+    - "Points System Integration"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -257,3 +258,5 @@ test_plan:
 agent_communication:
     - agent: "testing"
     - message: "Backend testing completed successfully. 11/12 tests passed (91.7% success rate). All critical user flows working correctly including authentication with demo credentials ana@example.com/password123, products API returning marketplace items, points system with proper level progression, and user management for both client and professional roles. Only video gallery endpoints not found, which appears expected as video functionality may not be implemented yet. All APIs respond correctly and JWT authentication working properly."
+    - agent: "testing"
+    - message: "Starting comprehensive frontend testing for HealthLoop Nexus. Will test Authentication Flow (login with ana@example.com/password123), Video Gallery Flow (8 demo videos with categorization), Marketplace Flow (5 food items), Navigation & UX (all links and responsive design), and Points System Integration (display and level progression). Base URL: https://fitness-connect-9.preview.emergentagent.com/"
