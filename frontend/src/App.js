@@ -462,29 +462,40 @@ const ConsultationTimer = ({ duration = 30 }) => {
   );
 };
 
-// Protected Route Component
+// Protected Route Component with DEBUG LOGGING
 const ProtectedRoute = ({ children, requiredRole = null }) => {
   const { user, loading } = useAuth();
   
+  console.log('ProtectedRoute Debug:', { 
+    user: user ? { id: user.id, email: user.email, name: user.name } : null, 
+    loading, 
+    hasToken: !!localStorage.getItem('token'),
+    currentPath: window.location.pathname
+  });
+  
   if (loading) {
+    console.log('ProtectedRoute: Still loading auth...');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Cargando...</p>
+          <p className="text-lg text-gray-600">Verificando autenticación...</p>
         </div>
       </div>
     );
   }
 
   if (!user) {
+    console.log('ProtectedRoute: No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
   if (requiredRole && user.role !== requiredRole) {
+    console.log('ProtectedRoute: Role mismatch, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
+  console.log('ProtectedRoute: Access granted, rendering children');
   return children;
 };
 
