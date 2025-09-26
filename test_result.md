@@ -342,6 +342,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ CRITICAL: Cart functionality completely broken. /cart page loads but shows no content. GET /api/cart returns 401 Unauthorized due to authentication session issues. Add to cart buttons not functional. Cart page appears empty/non-functional to users."
+        - working: false
+        - agent: "testing"
+        - comment: "⚠️ INTERMITTENT ISSUE: Cart API endpoints are functional when tested individually (all return 200 OK), but fail intermittently during normal app usage. The issue is that when the Marketplace component loads, it makes a call to /api/cart which sometimes returns 401 Unauthorized. This triggers the axios response interceptor to remove the JWT token and redirect to auth, breaking the entire session. The cart functionality itself works correctly when authentication is stable."
 
 metadata:
   created_by: "testing_agent"
