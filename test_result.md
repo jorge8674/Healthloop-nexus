@@ -273,9 +273,9 @@ frontend:
 
   - task: "Marketplace Flow"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -285,6 +285,9 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ Marketplace working perfectly. Found 6 food products loading correctly: Plan Keto Completo ($18.99), Bowl Mediterráneo ($16.5), Buddha Bowl Vegano ($15.75), Ensalada Energética, Wrap Keto Supremo, and Plan Keto Completo. All products display proper images, prices, ingredients, and calorie information. Diet type filters working (Keto, Mediterráneo, Vegano, Saludable). 10 'Agregar al Carrito' buttons found and functional. Product categorization by diet type working correctly."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL: Marketplace completely broken due to authentication issues. Products API (/api/products) works fine (returns 10 products), but marketplace page shows NO products because authentication fails. No 'Add to Cart' buttons visible. Cart functionality broken with 401/403 errors. Authentication session loss prevents any marketplace interaction. User sees empty marketplace page despite products being available."
 
   - task: "Navigation & UX"
     implemented: true
