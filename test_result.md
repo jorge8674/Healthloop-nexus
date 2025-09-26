@@ -240,9 +240,9 @@ backend:
 frontend:
   - task: "Authentication Flow"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -264,6 +264,9 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ AXIOS INTERCEPTOR SIMPLIFICATION SUCCESS! After simplified axios interceptors, authentication flow is now STABLE. Login with cliente@healthloop.com/demo123 works perfectly: JWT token stored correctly, successful redirect to dashboard, user data displays (Ana García, 650 pts, Active level), session persistence works after page refresh. The simplified interceptor (no retries, direct 401 redirect) resolved the race condition issues. Core authentication is now functional and reliable."
+        - working: false
+        - agent: "testing"
+        - comment: "⚠️ RACE CONDITION FIXES PARTIALLY SUCCESSFUL: Comprehensive 4-phase testing reveals significant improvements but new issues. IMPROVEMENTS: ✅ Protected routes (/cart, /videos) no longer redirect to auth, ✅ Session stable during rapid navigation, ✅ No 401 errors during navigation, ✅ Concurrent API calls succeed (200 OK). REMAINING ISSUES: ❌ Pages stuck in 'Verificando autenticación...' loading state, ❌ Session lost after page refresh, ❌ Cannot test AddToCart due to loading state. The authReadyPromise mechanism appears to prevent pages from loading properly despite backend APIs working correctly. Core race conditions resolved but loading state mechanism needs fixing."
 
   - task: "Video Gallery Flow"
     implemented: true
