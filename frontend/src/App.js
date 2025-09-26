@@ -167,13 +167,11 @@ const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         const response = await axios.get(`${API}/auth/me`);
         setUser(response.data);
       } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('token');
-        delete axios.defaults.headers.common['Authorization'];
       }
     }
     setLoading(false);
@@ -185,7 +183,6 @@ const AuthProvider = ({ children }) => {
       const { access_token, user: userData } = response.data;
       
       localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(userData);
       
       toast.success(`¡Bienvenido, ${userData.name}!`);
@@ -203,7 +200,6 @@ const AuthProvider = ({ children }) => {
       const { access_token, user: newUser } = response.data;
       
       localStorage.setItem('token', access_token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(newUser);
       
       toast.success(`¡Cuenta creada! +${100} puntos de bienvenida!`);
@@ -217,7 +213,6 @@ const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     toast.success('Sesión cerrada exitosamente');
   };
