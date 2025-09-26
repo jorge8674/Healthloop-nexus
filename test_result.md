@@ -272,7 +272,7 @@ frontend:
     implemented: true
     working: false
     file: "/app/frontend/src/components/VideoGallery.js"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -291,6 +291,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ VIDEO GALLERY REMAINS COMPLETELY INACCESSIBLE AFTER AXIOS SIMPLIFICATION: Navigation to /videos still triggers immediate redirect to auth page. Video gallery functionality is completely blocked for users. Despite stable initial authentication, attempting to access videos breaks the session. Users cannot view video content, cannot access categorization features, cannot earn points from video completion. This breaks the entire video-based engagement system and gamification features. Video gallery remains completely non-functional."
+        - working: false
+        - agent: "testing"
+        - comment: "⚠️ SIGNIFICANT IMPROVEMENT - NO MORE AUTH REDIRECTS: Race condition testing shows major progress - /videos page no longer redirects to auth page (huge improvement from previous complete inaccessibility). However, page is stuck on 'Cargando...' loading state and video grid not found. The core race condition issue (auth redirects) is resolved, but loading state mechanism prevents video content from displaying. Users can now access videos page without losing authentication, but content doesn't load due to authReadyPromise mechanism blocking page rendering."
 
   - task: "Marketplace Flow"
     implemented: true
