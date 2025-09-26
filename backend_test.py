@@ -988,9 +988,14 @@ class HealthLoopTester:
 if __name__ == "__main__":
     tester = HealthLoopTester()
     
-    # Check if we should run focused cart tests or all tests
-    if len(sys.argv) > 1 and sys.argv[1] == "--cart-focused":
-        results = tester.run_focused_cart_tests()
+    # Check which tests to run
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--cart-focused":
+            results = tester.run_focused_cart_tests()
+        elif sys.argv[1] == "--onboarding-membership":
+            results = tester.run_onboarding_membership_tests()
+        else:
+            results = tester.run_all_tests()
     else:
         results = tester.run_all_tests()
     
