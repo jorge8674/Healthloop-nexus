@@ -1628,11 +1628,11 @@ const Marketplace = () => {
       const url = dietType ? `${API}/products?diet_type=${dietType}` : `${API}/products`;
       const response = await axios.get(url);
       setProducts(response.data);
-      setLoading(false);
+      setProductsLoading(false);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Error al cargar productos');
-      setLoading(false);
+      setProductsLoading(false);
     }
   };
 
