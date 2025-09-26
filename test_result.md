@@ -240,9 +240,9 @@ backend:
 frontend:
   - task: "Authentication Flow"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -252,6 +252,9 @@ frontend:
         - working: true
         - agent: "testing"
         - comment: "✅ Authentication working perfectly. Demo credentials (cliente@healthloop.com / demo123) work correctly. User successfully redirected to dashboard after login. Session persistence verified with user points (700 pts) and level (Active) displaying correctly in header and dashboard. JWT token authentication working properly."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CRITICAL: Authentication session breaks immediately after login. While login succeeds (JWT token stored, redirected to dashboard), all subsequent /api/auth/me calls return 401 Unauthorized. This causes complete loss of authentication state, breaking all authenticated features. Backend logs confirm: POST /api/auth/login returns 200 OK, but GET /api/auth/me returns 401 Unauthorized immediately after. JWT token validation/expiration issue."
 
   - task: "Video Gallery Flow"
     implemented: true
