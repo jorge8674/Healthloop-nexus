@@ -626,7 +626,12 @@ class HealthLoopTester:
 
 if __name__ == "__main__":
     tester = HealthLoopTester()
-    results = tester.run_all_tests()
+    
+    # Check if we should run focused cart tests or all tests
+    if len(sys.argv) > 1 and sys.argv[1] == "--cart-focused":
+        results = tester.run_focused_cart_tests()
+    else:
+        results = tester.run_all_tests()
     
     # Exit with error code if tests failed
     if results['failed'] > 0:
