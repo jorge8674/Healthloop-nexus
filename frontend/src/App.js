@@ -1793,18 +1793,18 @@ const Marketplace = () => {
 // Cart Component (Enhanced with points display)
 const Cart = () => {
   const [cart, setCart] = useState({ items: [], total: 0 });
+  const [showCheckout, setShowCheckout] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, updateUserPoints } = useAuth();
 
   useEffect(() => {
     fetchCart();
-  }, []);
+  }, [user]);
 
   const fetchCart = async () => {
     try {
-      console.log('Fetching cart with user:', user);
       const response = await axios.get(`${API}/cart`);
-      console.log('Cart response:', response.data);
       setCart(response.data);
       setLoading(false);
     } catch (error) {
@@ -1812,56 +1812,6 @@ const Cart = () => {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Cargando carrito...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-blue-100 py-8">
-      <NavigationHeader />
-      <div className="container mx-auto px-4 mt-8">
-        <Card className="max-w-4xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">🛒 Mi Carrito</CardTitle>
-            <p className="text-center text-gray-600">Usuario: {user?.name || 'No autenticado'}</p>
-          </CardHeader>
-          <CardContent>
-            {cart.items && cart.items.length > 0 ? (
-              <div>
-                <p>Items en carrito: {cart.items.length}</p>
-                <p>Total: ${cart.total}</p>
-                {cart.items.map((item, index) => (
-                  <div key={index} className="border p-4 mb-2 rounded">
-                    <p>{item.product_name} - ${item.product_price} x {item.quantity}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <ShoppingCart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <p className="text-xl text-gray-600">Tu carrito está vacío</p>
-                <Button 
-                  onClick={() => window.location.href = '/marketplace'} 
-                  className="mt-4"
-                >
-                  Continuar comprando
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-};
 
   const clearCart = async () => {
     try {
