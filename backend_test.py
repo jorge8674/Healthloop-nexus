@@ -856,6 +856,49 @@ class HealthLoopTester:
         print("\n🎉 CART ENDPOINT TESTING COMPLETED SUCCESSFULLY!")
         return True
     
+    def run_onboarding_membership_tests(self):
+        """Run focused onboarding and membership system tests as requested"""
+        print("🚀 Starting Onboarding and Membership System Tests")
+        print("=" * 60)
+        
+        # Initialize demo data first
+        print("🔧 Initializing demo data...")
+        self.test_demo_data_initialization()
+        
+        # Test sequence for onboarding and membership
+        tests = [
+            ("Registration with Premium Membership", self.test_registration_with_membership),
+            ("Onboarding Flow (Steps 1-5)", self.test_onboarding_flow),
+            ("Membership System", self.test_membership_system),
+            ("Updated User Info", self.test_updated_user_info)
+        ]
+        
+        for test_name, test_func in tests:
+            print(f"\n🔍 Running: {test_name}")
+            try:
+                test_func()
+            except Exception as e:
+                self.log_result(test_name, False, f"Test execution failed", str(e))
+        
+        # Print summary
+        print("\n" + "=" * 60)
+        print("📊 ONBOARDING & MEMBERSHIP TEST SUMMARY")
+        print("=" * 60)
+        print(f"✅ Passed: {self.test_results['passed']}")
+        print(f"❌ Failed: {self.test_results['failed']}")
+        
+        if self.test_results['passed'] + self.test_results['failed'] > 0:
+            print(f"📈 Success Rate: {(self.test_results['passed'] / (self.test_results['passed'] + self.test_results['failed']) * 100):.1f}%")
+        
+        if self.test_results['errors']:
+            print(f"\n🚨 FAILED TESTS:")
+            for error in self.test_results['errors']:
+                print(f"   ❌ {error['test']}: {error['message']}")
+                if error['details']:
+                    print(f"      Details: {error['details'][:200]}...")
+        
+        return self.test_results
+
     def run_focused_cart_tests(self):
         """Run focused cart endpoint tests as requested"""
         print("🚀 Starting Focused Cart Endpoint Tests")
