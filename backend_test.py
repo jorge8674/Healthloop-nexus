@@ -542,6 +542,43 @@ class HealthLoopTester:
         print("\n🎉 CART ENDPOINT TESTING COMPLETED SUCCESSFULLY!")
         return True
     
+    def run_focused_cart_tests(self):
+        """Run focused cart endpoint tests as requested"""
+        print("🚀 Starting Focused Cart Endpoint Tests")
+        print("=" * 60)
+        
+        # Initialize demo data first
+        print("🔧 Initializing demo data...")
+        self.test_demo_data_initialization()
+        
+        # Run focused cart test
+        print(f"\n🔍 Running: Focused Cart Endpoint Testing")
+        try:
+            success = self.test_cart_endpoints_focused()
+            if not success:
+                self.log_result("Focused Cart Testing", False, "Cart endpoint testing failed")
+        except Exception as e:
+            self.log_result("Focused Cart Testing", False, f"Test execution failed", str(e))
+        
+        # Print summary
+        print("\n" + "=" * 60)
+        print("📊 CART TEST SUMMARY")
+        print("=" * 60)
+        print(f"✅ Passed: {self.test_results['passed']}")
+        print(f"❌ Failed: {self.test_results['failed']}")
+        
+        if self.test_results['passed'] + self.test_results['failed'] > 0:
+            print(f"📈 Success Rate: {(self.test_results['passed'] / (self.test_results['passed'] + self.test_results['failed']) * 100):.1f}%")
+        
+        if self.test_results['errors']:
+            print(f"\n🚨 FAILED TESTS:")
+            for error in self.test_results['errors']:
+                print(f"   ❌ {error['test']}: {error['message']}")
+                if error['details']:
+                    print(f"      Details: {error['details'][:200]}...")
+        
+        return self.test_results
+
     def run_all_tests(self):
         """Run all backend tests"""
         print("🚀 Starting HealthLoop Nexus Backend API Tests")
@@ -559,7 +596,8 @@ class HealthLoopTester:
             ("Points History API", self.test_points_history_api),
             ("Video Gallery Support", self.test_video_gallery_support),
             ("User Management", self.test_user_management),
-            ("Professional Functionality", self.test_professional_functionality)
+            ("Professional Functionality", self.test_professional_functionality),
+            ("Focused Cart Testing", self.test_cart_endpoints_focused)
         ]
         
         for test_name, test_func in tests:
