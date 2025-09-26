@@ -1195,6 +1195,171 @@ async def complete_video(video_id: str, current_user: User = Depends(get_current
         logger.error(f"Error completing video: {e}")
         raise HTTPException(status_code=500, detail="Error al completar video")
 
+# Cart Management Routes
+@app.get("/api/cart")
+async def get_cart(current_user: User = Depends(get_current_user)):
+    """Get user's current cart"""
+    try:
+        cart = await db.carts.find_one({"user_id": current_user.id})
+        if not cart:
+            # Create empty cart if doesn't exist
+            new_cart = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user.id,
+                "items": [],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.carts.insert_one(new_cart)
+            return {"items": [], "total": 0.0}
+        
+        # Calculate cart total
+        total = 0.0
+        cart_items = []
+        
+        for item in cart.get("items", []):
+            product = await db.products.find_one({"id": item["product_id"]})
+            if product:
+                item_total = product["price"] * item["quantity"]
+                total += item_total
+                cart_items.append({
+                    "product_id": item["product_id"],
+                    "product_name": product["name"],
+                    "product_price": product["price"],
+                    "quantity": item["quantity"],
+                    "item_total": item_total,
+                    "image_url": product.get("image_url", "")
+                })
+        
+        return {
+            "items": cart_items,
+            "total": round(total, 2)
+        }
+    except Exception as e:
+        logger.error(f"Error getting cart: {e}")
+        raise HTTPException(status_code=500, detail="Error al obtener carrito")
+
+@app.post("/api/cart/add")
+async def add_to_cart(request: CartAddRequest, current_user: User = Depends(get_current_user)):
+    """Add product to cart"""
+    try:
+        # Verify product exists
+        product = await db.products.find_one({"id": request.product_id})
+        if not product:
+            raise HTTPException(status_code=404, detail="Producto no encontrado")
+        
+        # Get or create cart
+        cart = await db.carts.find_one({"user_id": current_user.id})
+        if not cart:
+            cart = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user.id,
+                "items": [],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.carts.insert_one(cart)
+        
+        # Check if product already in cart
+        items = cart.get("items", [])
+        existing_item = None
+        for item in items:
+            if item["product_id"] == request.product_id:
+                existing_item = item
+                break
+        
+        if existing_item:
+            # Update quantity
+            existing_item["quantity"] += request.quantity
+        else:
+            # Add new item
+            items.append({
+                "product_id": request.product_id,
+                "quantity": request.quantity
+            })
+        
+        # Update cart
+        await db.carts.update_one(
+            {"user_id": current_user.id},
+            {
+                "$set": {
+                    "items": items,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        return {"message": "Producto agregado al carrito exitosamente"}
+    except Exception as e:
+        logger.error(f"Error adding to cart: {e}")
+        raise HTTPException(status_code=500, detail="Error al agregar producto al carrito")
+
+@app.delete("/api/cart/clear")
+async def clear_cart(current_user: User = Depends(get_current_user)):
+    """Clear user's cart"""
+    try:
+        await db.carts.update_one(
+            {"user_id": current_user.id},
+            {
+                "$set": {
+                    "items": [],
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        return {"message": "Carrito vaciado exitosamente"}
+    except Exception as e:
+        logger.error(f"Error clearing cart: {e}")
+        raise HTTPException(status_code=500, detail="Error al vaciar carrito")
+
+@app.post("/api/orders")
+async def create_order(current_user: User = Depends(get_current_user)):
+    """Create order from cart and award points"""
+    try:
+        # Get cart
+        cart = await db.carts.find_one({"user_id": current_user.id})
+        if not cart or not cart.get("items"):
+            raise HTTPException(status_code=400, detail="Carrito vacío")
+        
+        # Calculate total
+        total = 0.0
+        for item in cart["items"]:
+            product = await db.products.find_one({"id": item["product_id"]})
+            if product:
+                total += product["price"] * item["quantity"]
+        
+        # Create order
+        order = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user.id,
+            "items": cart["items"],
+            "total_amount": round(total, 2),
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.orders.insert_one(order)
+        
+        # Award points for purchase (10 points per dollar)
+        points_earned = int(total * 10)
+        await award_points(current_user.id, PointAction.PURCHASE, f"Compra por ${total:.2f}", points_earned)
+        
+        # Clear cart
+        await db.carts.update_one(
+            {"user_id": current_user.id},
+            {"$set": {"items": [], "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        return {
+            "message": "Pedido creado exitosamente",
+            "order_id": order["id"],
+            "total": total,
+            "points_earned": points_earned
+        }
+    except Exception as e:
+        logger.error(f"Error creating order: {e}")
+        raise HTTPException(status_code=500, detail="Error al crear pedido")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
