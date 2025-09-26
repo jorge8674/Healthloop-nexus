@@ -91,6 +91,29 @@ class ProfessionalType(str, Enum):
     NUTRITIONIST = "nutritionist"
     TRAINER = "trainer"
 
+class MembershipLevel(str, Enum):
+    BASIC = "basic"
+    PREMIUM = "premium"
+    ELITE = "elite"
+
+class ActivityLevel(str, Enum):
+    SEDENTARY = "sedentary"
+    LIGHT = "light"
+    MODERATE = "moderate"
+    ACTIVE = "active"
+    VERY_ACTIVE = "very_active"
+
+class Gender(str, Enum):
+    MALE = "male"
+    FEMALE = "female"
+    OTHER = "other"
+    PREFER_NOT_TO_SAY = "prefer_not_to_say"
+
+class ConsentLevel(str, Enum):
+    BASIC = "basic"
+    COMPLETE = "complete"
+    COMPLETE_WITH_ANALYTICS = "complete_with_analytics"
+
 class PointAction(str, Enum):
     REGISTRATION = "registration"
     FIRST_PURCHASE = "first_purchase"
