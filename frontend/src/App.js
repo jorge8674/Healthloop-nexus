@@ -1603,8 +1603,8 @@ const Marketplace = () => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [selectedDietType, setSelectedDietType] = useState('');
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [productsLoading, setProductsLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
