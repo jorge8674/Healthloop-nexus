@@ -2116,6 +2116,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/videos" element={<ProtectedRoute><VideoGallery user={user} updateUserPoints={updateUserPoints} /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
             <Route path="/success" element={<ProtectedRoute><SuccessPage /></ProtectedRoute>} />
