@@ -1122,6 +1122,77 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Video Gallery Routes
+@app.get("/api/videos")
+async def get_videos():
+    """Get all available videos"""
+    demo_videos = [
+        {
+            "id": "video-1",
+            "title": "Rutina Cardio Intenso 20min",
+            "description": "Quema grasa y mejora tu resistencia con esta rutina de cardio de alta intensidad.",
+            "category": "Cardio",
+            "youtube_id": "dQw4w9WgXcQ",
+            "duration": 20,
+            "points": 50,
+            "difficulty": "Intermedio",
+            "equipment": "Sin equipo",
+            "instructor": "Carlos Fitness"
+        },
+        {
+            "id": "video-2", 
+            "title": "Yoga para Principiantes",
+            "description": "Sesión relajante de yoga perfecta para comenzar tu práctica de mindfulness.",
+            "category": "Yoga",
+            "youtube_id": "dQw4w9WgXcQ",
+            "duration": 30,
+            "points": 50,
+            "difficulty": "Principiante",
+            "equipment": "Mat de yoga",
+            "instructor": "Ana Wellness"
+        },
+        {
+            "id": "video-3",
+            "title": "Fuerza Total Body",
+            "description": "Entrena todo tu cuerpo con ejercicios de fuerza usando peso corporal.",
+            "category": "Fuerza",
+            "youtube_id": "dQw4w9WgXcQ",
+            "duration": 25,
+            "points": 50,
+            "difficulty": "Intermedio",
+            "equipment": "Sin equipo",
+            "instructor": "Miguel Strong"
+        },
+        {
+            "id": "video-4",
+            "title": "Nutrición Saludable Básica",
+            "description": "Aprende los fundamentos de una alimentación equilibrada y nutritiva.",
+            "category": "Nutrición",
+            "youtube_id": "dQw4w9WgXcQ",
+            "duration": 15,
+            "points": 50,
+            "difficulty": "Principiante", 
+            "equipment": "Ninguno",
+            "instructor": "Dr. María López"
+        }
+    ]
+    return demo_videos
+
+@app.post("/api/videos/{video_id}/complete")
+async def complete_video(video_id: str, current_user: User = Depends(get_current_user)):
+    """Mark video as completed and award points"""
+    try:
+        # Award 50 points for video completion using existing award_points function
+        points_awarded = await award_points(current_user.id, PointAction.COMPLETE_CONSULTATION, "Video completado exitosamente")
+        
+        return {
+            "message": "Video completado exitosamente",
+            "points_awarded": points_awarded
+        }
+    except Exception as e:
+        logger.error(f"Error completing video: {e}")
+        raise HTTPException(status_code=500, detail="Error al completar video")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
