@@ -178,7 +178,65 @@ backend:
         - comment: "Professional functionality working correctly. Professional users can login and access specialized dashboard. Professional dashboard shows type (nutritionist), specialization (Nutrición Deportiva), hourly rate ($30), assigned clients (2), and commission pending ($125). Consultation endpoints also available for professionals."
 
 frontend:
-  # Frontend testing not performed by testing agent
+  - task: "Authentication Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Ready for testing - Login with ana@example.com / password123, verify redirect to dashboard, check session persistence"
+
+  - task: "Video Gallery Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/VideoGallery.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Ready for testing - Navigate to /videos, verify 8 demo videos load, test categorization (Cardio, Yoga, Fuerza, Nutrición), test video completion functionality, verify points awarded (+50 pts per video)"
+
+  - task: "Marketplace Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Ready for testing - Navigate to /marketplace, verify product listings load (5 food items), test add to cart functionality, verify cart updates"
+
+  - task: "Navigation & UX"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Ready for testing - Test all navigation links work, verify responsive design, check protected routes redirect correctly, test logout functionality"
+
+  - task: "Points System Integration"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Ready for testing - Verify points display correctly in navigation, test level progression (Beginner → Active → etc.), check points history if accessible"
 
 metadata:
   created_by: "testing_agent"
