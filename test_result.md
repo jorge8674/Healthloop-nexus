@@ -189,6 +189,54 @@ backend:
         - agent: "testing"
         - comment: "Cart endpoints fully functional and tested comprehensively. GET /api/cart returns proper cart structure with nested product objects, quantities, subtotals, and total. POST /api/cart/add successfully adds products with authentication. Error handling working correctly: 403 for unauthenticated requests, 404 for invalid product_ids. Cart persistence working properly - items remain in cart after adding. Authentication via JWT tokens working perfectly. All 6 focused cart tests passed (100% success rate)."
 
+  - task: "Registration with Membership Levels"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "Registration with membership levels working perfectly. POST /api/auth/register successfully creates users with specified membership_level (premium tested). User profile automatically created for onboarding. Registration awards 100 points and calculates proper level. JWT token generation working correctly. User data includes membership_level field as expected."
+
+  - task: "Onboarding Flow (Steps 1-5)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "Complete onboarding flow working perfectly. All 5 steps functional: Step 1 (personal data), Step 2 (health/anthropometric data), Step 3 (goals and habits), Step 4 (PAR-Q evaluation), Step 5 (addresses and consent). Data saved correctly in user_profiles collection. Onboarding completion awards +50 points. GET /api/onboarding/status correctly shows progress (100% when completed). All endpoints require authentication and validate data properly."
+
+  - task: "Membership System"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "Membership system fully functional. GET /api/memberships/plans returns 3 membership tiers (Basic: $499/annual, Premium: $799/annual, Elite: $1250/lifetime) with detailed benefits including consultations per month, video categories, monthly points, and data sharing levels. Current promotions included. POST /api/memberships/upgrade successfully upgrades membership levels and awards bonus points (500 points for Elite upgrade). Membership benefits properly configured with different access levels."
+
+  - task: "Updated User Info with Membership"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+        - agent: "testing"
+        - comment: "GET /api/auth/me endpoint successfully includes membership_level field in user response. Tested with existing demo user (cliente@healthloop.com) showing 'basic' membership level. UserResponse model properly includes membership_level field. All user data correctly returned including points, level, role, and membership information."
+
 frontend:
   - task: "Authentication Flow"
     implemented: true
