@@ -377,8 +377,74 @@ class UserRegister(BaseModel):
     name: str
     password: str
     role: UserRole
+    membership_level: Optional[MembershipLevel] = MembershipLevel.BASIC
     professional_type: Optional[ProfessionalType] = None
     specialization: Optional[str] = None
+
+class OnboardingStep1Request(BaseModel):
+    first_name: str
+    last_name: str
+    date_of_birth: Optional[str] = None
+    gender: Optional[Gender] = None
+    phone: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+class OnboardingStep2Request(BaseModel):
+    weight_kg: Optional[float] = None
+    height_cm: Optional[float] = None
+    waist_circumference: Optional[float] = None
+    hip_circumference: Optional[float] = None
+    arm_circumference: Optional[float] = None
+    body_fat_percentage: Optional[float] = None
+    muscle_mass_percentage: Optional[float] = None
+    food_allergies: List[str] = []
+    food_intolerances: List[str] = []
+    medical_conditions: List[str] = []
+    current_medications: List[str] = []
+    is_pregnant: Optional[bool] = None
+    is_breastfeeding: Optional[bool] = None
+
+class OnboardingStep3Request(BaseModel):
+    weight_loss: bool = False
+    muscle_gain: bool = False
+    maintenance: bool = False
+    sports_performance: bool = False
+    medical_management: bool = False
+    target_weight: Optional[float] = None
+    timeline_months: Optional[int] = None
+    specific_goals: List[str] = []
+    activity_level: Optional[ActivityLevel] = None
+    sleep_hours_per_night: Optional[int] = None
+    water_glasses_per_day: Optional[int] = None
+
+class OnboardingStep4Request(BaseModel):
+    heart_problems: Optional[bool] = None
+    chest_pain: Optional[bool] = None
+    loss_of_balance: Optional[bool] = None
+    bone_joint_problems: Optional[bool] = None
+    blood_pressure_medication: Optional[bool] = None
+    doctor_advised_no_exercise: Optional[bool] = None
+    meals_outside_home_per_week: Optional[int] = None
+    usual_meal_times: Optional[List[str]] = []
+    smoking: Optional[bool] = None
+    alcohol_frequency: Optional[str] = None
+
+class OnboardingStep5Request(BaseModel):
+    shipping_address: Address
+    billing_address: Optional[Address] = None
+    trainer_basic_data: bool = False
+    trainer_anthropometric: bool = False
+    trainer_fitness_evaluation: bool = False
+    trainer_progress_tracking: bool = False
+    nutritionist_basic_data: bool = False
+    nutritionist_dietary_history: bool = False
+    nutritionist_medical_conditions: bool = False
+    nutritionist_progress_tracking: bool = False
+    both_general_progress: bool = False
+    both_integrated_data: bool = False
+    data_analytics: bool = False
+    marketing_communications: bool = False
 
 class UserLogin(BaseModel):
     email: EmailStr
