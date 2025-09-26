@@ -745,10 +745,15 @@ const AuthPage = () => {
     try {
       if (isLogin) {
         const userData = await login(formData.email, formData.password);
-        navigate('/dashboard');
+        // Wait a bit for the user state to update before navigating
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 100);
       } else {
         const userData = await register(formData);
-        navigate('/dashboard');
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 100);
       }
     } catch (error) {
       // Error handling is done in the auth context
