@@ -330,13 +330,16 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Registration with Membership Levels"
-    - "Onboarding Flow (Steps 1-5)"
-    - "Membership System"
-    - "Updated User Info with Membership"
-  stuck_tasks: []
+    - "Authentication Flow"
+    - "Marketplace Flow"
+    - "Video Gallery Flow"
+    - "Cart Functionality"
+  stuck_tasks: 
+    - "Authentication Flow"
+    - "Marketplace Flow"
+    - "Video Gallery Flow"
   test_all: false
-  test_priority: "high_first"
+  test_priority: "stuck_first"
 
 agent_communication:
     - agent: "testing"
