@@ -30,6 +30,40 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Password hashing
 security = HTTPBearer()
 
+# Helper functions for MongoDB serialization
+def parse_from_mongo(item):
+    """Parse MongoDB document to Python dict, handling special types"""
+    if isinstance(item.get('date'), str):
+        try:
+            item['date'] = datetime.fromisoformat(item['date']).date()
+        except:
+            pass
+    if isinstance(item.get('time'), str):
+        try:
+            item['time'] = datetime.strptime(item['time'], '%H:%M:%S').time()
+        except:
+            pass
+    if isinstance(item.get('created_at'), str):
+        try:
+            item['created_at'] = datetime.fromisoformat(item['created_at'])
+        except:
+            pass
+    return item
+
+def prepare_for_mongo(data):
+    """Prepare Python data for MongoDB storage"""
+    if hasattr(data, 'dict'):
+        data = data.dict()
+    
+    if isinstance(data.get('date'), str):
+        data['date'] = data['date']
+    if isinstance(data.get('time'), str):
+        data['time'] = data['time'] 
+    if isinstance(data.get('created_at'), datetime):
+        data['created_at'] = data['created_at'].isoformat()
+    
+    return data
+
 # Create the main app without a prefix
 app = FastAPI()
 
