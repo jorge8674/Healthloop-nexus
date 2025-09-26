@@ -486,6 +486,17 @@ class UserResponse(BaseModel):
     total_points_earned: int
     level: str
 
+# Response Models
+class UserResponse(BaseModel):
+    id: str
+    email: EmailStr
+    name: str
+    role: UserRole
+    points: int
+    total_points_earned: int
+    level: str
+    membership_level: Optional[MembershipLevel] = None
+
 class PointsHistoryResponse(BaseModel):
     transactions: List[PointsTransaction]
     total_points: int
