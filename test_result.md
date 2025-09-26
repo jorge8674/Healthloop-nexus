@@ -363,6 +363,9 @@ frontend:
         - working: false
         - agent: "testing"
         - comment: "❌ CART FUNCTIONALITY SEVERELY LIMITED: Deep investigation shows cart page is accessible after login and displays 'Tu carrito está vacío' (empty cart) message correctly. However, NO cart functionality is available: 0 cart items, 0 quantity controls, 0 remove buttons, 0 checkout buttons, 0 form fields. Cart remains perpetually empty because marketplace AddToCart buttons are non-functional due to authentication issues. Users cannot add products to cart, cannot modify quantities, cannot proceed to checkout. Cart page exists but provides no functional e-commerce capabilities. This is a complete cart flow breakdown."
+        - working: false
+        - agent: "testing"
+        - comment: "❌ CART ACCESS COMPLETELY BLOCKED AFTER AXIOS SIMPLIFICATION: Direct navigation to /cart now triggers immediate redirect to auth page, indicating complete session loss. Cart functionality is completely inaccessible to users. Even after successful login and stable dashboard access, attempting to access cart breaks authentication session. This is worse than previous intermittent issues - cart is now completely blocked. Combined with marketplace add-to-cart failures, entire e-commerce flow is non-functional."
 
 metadata:
   created_by: "testing_agent"
