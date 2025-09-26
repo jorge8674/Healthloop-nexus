@@ -739,11 +739,23 @@ async def register_user(user_data: UserRegister):
         email=user_data.email,
         name=user_data.name,
         role=user_data.role,
+        membership_level=user_data.membership_level or MembershipLevel.BASIC,
         password_hash=get_password_hash(user_data.password)
     )
     
     user_dict = prepare_for_mongo(user.dict())
     await db.users.insert_one(user_dict)
+    
+    # Create empty user profile for onboarding
+    if user_data.role == UserRole.CLIENT:
+        profile = UserProfile(
+            user_id=user.id,
+            personal_data=PersonalData(first_name="", last_name=""),
+            onboarding_completed=False,
+            onboarding_step=1
+        )
+        profile_dict = prepare_for_mongo(profile.dict())
+        await db.user_profiles.insert_one(profile_dict)
     
     # If professional, create professional profile
     if user_data.role == UserRole.PROFESSIONAL and user_data.professional_type:
