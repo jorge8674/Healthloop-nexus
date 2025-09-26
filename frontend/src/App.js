@@ -1799,12 +1799,8 @@ const Cart = () => {
   const { user, updateUserPoints } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      fetchCart();
-    } else {
-      navigate('/auth');
-    }
-  }, [user, navigate]);
+    fetchCart();
+  }, [user]);
 
   const fetchCart = async () => {
     try {
