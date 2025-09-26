@@ -25,23 +25,10 @@ import './App.css';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Auth ready promise - se resuelve cuando la autenticación está verificada
-let authReadyResolve;
-const authReadyPromise = new Promise((resolve) => {
-  authReadyResolve = resolve;
-});
-
-// Configure axios interceptors for JWT - IMPROVED VERSION
+// Configure axios interceptors for JWT - FIXED VERSION
 axios.interceptors.request.use(
-  async (config) => {
-    // Si es una ruta de auth pública, no esperar
-    if (config.url.includes('/auth/login') || config.url.includes('/auth/register') || config.url.includes('/products')) {
-      return config;
-    }
-    
-    // Para rutas protegidas, esperar a que auth esté listo
-    await authReadyPromise;
-    
+  (config) => {
+    // Para todas las rutas, intentar agregar token si existe
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -53,7 +40,7 @@ axios.interceptors.request.use(
   }
 );
 
-// SIMPLIFIED response interceptor - no retries
+// SIMPLIFIED response interceptor
 axios.interceptors.response.use(
   (response) => {
     return response;
