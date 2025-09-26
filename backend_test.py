@@ -367,6 +367,318 @@ class HealthLoopTester:
             self.log_result("Professional Functionality", False, "Request failed", str(e))
             return False
 
+    def test_registration_with_membership(self):
+        """Test user registration with premium membership level"""
+        try:
+            user_data = {
+                "email": "premium_user@healthloop.com",
+                "name": "Premium User",
+                "password": "demo123",
+                "role": "client",
+                "membership_level": "premium"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                user_info = data.get('user', {})
+                self.log_result("Registration with Premium Membership", True, f"User registered with premium membership: {user_info.get('name')}")
+                print(f"   👤 User: {user_info.get('name')}")
+                print(f"   📧 Email: {user_info.get('email')}")
+                print(f"   🏆 Points: {user_info.get('points')}")
+                print(f"   📊 Level: {user_info.get('level')}")
+                
+                # Store token for onboarding tests
+                self.premium_auth_token = data.get('access_token')
+                self.premium_user_data = user_info
+                
+                return True
+            elif response.status_code == 400 and "already registered" in response.text:
+                # User exists, try to login instead
+                login_data = {
+                    "email": user_data["email"],
+                    "password": user_data["password"]
+                }
+                login_response = self.session.post(f"{API_BASE}/auth/login", json=login_data)
+                if login_response.status_code == 200:
+                    data = login_response.json()
+                    self.premium_auth_token = data.get('access_token')
+                    self.premium_user_data = data.get('user')
+                    self.log_result("Registration with Premium Membership", True, "User already exists, logged in successfully")
+                    return True
+                else:
+                    self.log_result("Registration with Premium Membership", False, f"Login failed with status {login_response.status_code}")
+                    return False
+            else:
+                self.log_result("Registration with Premium Membership", False, f"Registration failed with status {response.status_code}", response.text)
+                return False
+        except Exception as e:
+            self.log_result("Registration with Premium Membership", False, "Registration request failed", str(e))
+            return False
+
+    def test_onboarding_flow(self):
+        """Test complete onboarding flow (Steps 1-5)"""
+        if not hasattr(self, 'premium_auth_token') or not self.premium_auth_token:
+            self.log_result("Onboarding Flow", False, "No premium user token available")
+            return False
+        
+        # Create session with premium user token
+        onboarding_session = requests.Session()
+        onboarding_session.headers.update({'Authorization': f'Bearer {self.premium_auth_token}'})
+        
+        try:
+            # Step 1: Personal Data
+            print("   📝 Step 1: Personal Data")
+            step1_data = {
+                "first_name": "María",
+                "last_name": "González",
+                "date_of_birth": "1990-05-15",
+                "gender": "female",
+                "phone": "+52-555-123-4567",
+                "emergency_contact_name": "Carlos González",
+                "emergency_contact_phone": "+52-555-987-6543"
+            }
+            
+            step1_response = onboarding_session.post(f"{API_BASE}/onboarding/step1", json=step1_data)
+            if step1_response.status_code != 200:
+                self.log_result("Onboarding Step 1", False, f"Failed with status {step1_response.status_code}", step1_response.text)
+                return False
+            print("      ✅ Personal data saved successfully")
+            
+            # Step 2: Health/Anthropometric Data
+            print("   🏥 Step 2: Health/Anthropometric Data")
+            step2_data = {
+                "weight_kg": 65.5,
+                "height_cm": 165.0,
+                "waist_circumference": 75.0,
+                "hip_circumference": 95.0,
+                "body_fat_percentage": 22.0,
+                "food_allergies": ["nuts", "shellfish"],
+                "food_intolerances": ["lactose"],
+                "medical_conditions": [],
+                "current_medications": [],
+                "is_pregnant": False,
+                "is_breastfeeding": False
+            }
+            
+            step2_response = onboarding_session.post(f"{API_BASE}/onboarding/step2", json=step2_data)
+            if step2_response.status_code != 200:
+                self.log_result("Onboarding Step 2", False, f"Failed with status {step2_response.status_code}", step2_response.text)
+                return False
+            print("      ✅ Health data saved successfully")
+            
+            # Step 3: Goals and Habits
+            print("   🎯 Step 3: Goals and Habits")
+            step3_data = {
+                "weight_loss": True,
+                "muscle_gain": False,
+                "maintenance": False,
+                "sports_performance": False,
+                "medical_management": False,
+                "target_weight": 60.0,
+                "timeline_months": 6,
+                "specific_goals": ["Lose 5kg", "Improve cardiovascular health"],
+                "activity_level": "moderate",
+                "sleep_hours_per_night": 7,
+                "water_glasses_per_day": 8
+            }
+            
+            step3_response = onboarding_session.post(f"{API_BASE}/onboarding/step3", json=step3_data)
+            if step3_response.status_code != 200:
+                self.log_result("Onboarding Step 3", False, f"Failed with status {step3_response.status_code}", step3_response.text)
+                return False
+            print("      ✅ Goals and habits saved successfully")
+            
+            # Step 4: PAR-Q Evaluation
+            print("   🏃 Step 4: PAR-Q Evaluation")
+            step4_data = {
+                "heart_problems": False,
+                "chest_pain": False,
+                "loss_of_balance": False,
+                "bone_joint_problems": False,
+                "blood_pressure_medication": False,
+                "doctor_advised_no_exercise": False,
+                "meals_outside_home_per_week": 3,
+                "usual_meal_times": ["08:00", "13:00", "19:00"],
+                "smoking": False,
+                "alcohol_frequency": "occasionally"
+            }
+            
+            step4_response = onboarding_session.post(f"{API_BASE}/onboarding/step4", json=step4_data)
+            if step4_response.status_code != 200:
+                self.log_result("Onboarding Step 4", False, f"Failed with status {step4_response.status_code}", step4_response.text)
+                return False
+            print("      ✅ PAR-Q evaluation saved successfully")
+            
+            # Step 5: Addresses and Consent
+            print("   📍 Step 5: Addresses and Consent")
+            step5_data = {
+                "shipping_address": {
+                    "street": "Av. Reforma 123",
+                    "city": "Ciudad de México",
+                    "state": "CDMX",
+                    "postal_code": "06600",
+                    "country": "México",
+                    "delivery_instructions": "Tocar timbre del apartamento 4B"
+                },
+                "trainer_basic_data": True,
+                "trainer_anthropometric": True,
+                "trainer_fitness_evaluation": True,
+                "trainer_progress_tracking": True,
+                "nutritionist_basic_data": True,
+                "nutritionist_dietary_history": True,
+                "nutritionist_medical_conditions": False,
+                "nutritionist_progress_tracking": True,
+                "both_general_progress": True,
+                "both_integrated_data": True,
+                "data_analytics": True,
+                "marketing_communications": False
+            }
+            
+            step5_response = onboarding_session.post(f"{API_BASE}/onboarding/step5", json=step5_data)
+            if step5_response.status_code != 200:
+                self.log_result("Onboarding Step 5", False, f"Failed with status {step5_response.status_code}", step5_response.text)
+                return False
+            print("      ✅ Addresses and consent saved successfully")
+            
+            # Check onboarding status
+            print("   📊 Checking onboarding completion status")
+            status_response = onboarding_session.get(f"{API_BASE}/onboarding/status")
+            if status_response.status_code == 200:
+                status_data = status_response.json()
+                completed = status_data.get('onboarding_completed', False)
+                progress = status_data.get('progress_percentage', 0)
+                current_step = status_data.get('current_step', 0)
+                
+                if completed and progress == 100:
+                    self.log_result("Onboarding Flow", True, f"Complete onboarding flow successful - 100% completed")
+                    print(f"      ✅ Onboarding completed: {completed}")
+                    print(f"      📈 Progress: {progress}%")
+                    print(f"      📍 Current step: {current_step}")
+                    return True
+                else:
+                    self.log_result("Onboarding Flow", False, f"Onboarding not completed - Progress: {progress}%")
+                    return False
+            else:
+                self.log_result("Onboarding Status Check", False, f"Failed with status {status_response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_result("Onboarding Flow", False, "Onboarding flow failed", str(e))
+            return False
+
+    def test_membership_system(self):
+        """Test membership system endpoints"""
+        try:
+            # Test GET /api/memberships/plans
+            print("   📋 Testing membership plans endpoint")
+            plans_response = self.session.get(f"{API_BASE}/memberships/plans")
+            
+            if plans_response.status_code == 200:
+                plans_data = plans_response.json()
+                plans = plans_data.get('plans', {})
+                promotions = plans_data.get('current_promotions', {})
+                
+                print(f"      ✅ Retrieved {len(plans)} membership plans")
+                for plan_name, benefits in plans.items():
+                    print(f"         - {plan_name.upper()}: ${benefits.get('price', 0)} ({benefits.get('duration', 'N/A')})")
+                    print(f"           Consultations: {benefits.get('consultations_per_month', 0)}/month")
+                    print(f"           Monthly points: {benefits.get('monthly_points', 0)}")
+                
+                if promotions:
+                    print(f"      🎉 Current promotions: {len(promotions)}")
+                    for promo_name, promo_desc in promotions.items():
+                        print(f"         - {promo_name}: {promo_desc}")
+                
+                self.log_result("Membership Plans", True, f"Retrieved {len(plans)} membership plans with promotions")
+            else:
+                self.log_result("Membership Plans", False, f"Failed with status {plans_response.status_code}")
+                return False
+            
+            # Test membership upgrade (need authenticated user)
+            if hasattr(self, 'premium_auth_token') and self.premium_auth_token:
+                print("   ⬆️ Testing membership upgrade")
+                upgrade_session = requests.Session()
+                upgrade_session.headers.update({'Authorization': f'Bearer {self.premium_auth_token}'})
+                
+                # Try to upgrade to elite
+                upgrade_response = upgrade_session.post(f"{API_BASE}/memberships/upgrade?new_level=elite")
+                
+                if upgrade_response.status_code == 200:
+                    upgrade_data = upgrade_response.json()
+                    message = upgrade_data.get('message', '')
+                    benefits = upgrade_data.get('new_benefits', {})
+                    bonus_points = upgrade_data.get('bonus_points', 0)
+                    
+                    print(f"      ✅ Membership upgrade successful")
+                    print(f"      💬 Message: {message}")
+                    print(f"      🏆 Bonus points: {bonus_points}")
+                    print(f"      📋 New benefits: {benefits.get('consultations_per_month', 'N/A')} consultations/month")
+                    
+                    self.log_result("Membership Upgrade", True, f"Successfully upgraded membership with {bonus_points} bonus points")
+                elif upgrade_response.status_code == 400 and "Ya tienes este nivel" in upgrade_response.text:
+                    self.log_result("Membership Upgrade", True, "User already has this membership level (expected)")
+                else:
+                    self.log_result("Membership Upgrade", False, f"Upgrade failed with status {upgrade_response.status_code}", upgrade_response.text)
+                    return False
+            else:
+                print("      ⚠️ Skipping upgrade test - no authenticated user available")
+            
+            return True
+            
+        except Exception as e:
+            self.log_result("Membership System", False, "Membership system test failed", str(e))
+            return False
+
+    def test_updated_user_info(self):
+        """Test that GET /api/auth/me includes membership_level"""
+        # Test with existing demo user
+        try:
+            login_data = {
+                "email": "cliente@healthloop.com",
+                "password": "demo123"
+            }
+            
+            response = self.session.post(f"{API_BASE}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                auth_token = data.get('access_token')
+                
+                # Test /api/auth/me endpoint
+                auth_session = requests.Session()
+                auth_session.headers.update({'Authorization': f'Bearer {auth_token}'})
+                
+                me_response = auth_session.get(f"{API_BASE}/auth/me")
+                
+                if me_response.status_code == 200:
+                    user_data = me_response.json()
+                    membership_level = user_data.get('membership_level')
+                    
+                    if membership_level is not None:
+                        self.log_result("Updated User Info", True, f"User info includes membership_level: {membership_level}")
+                        print(f"   👤 User: {user_data.get('name')}")
+                        print(f"   📧 Email: {user_data.get('email')}")
+                        print(f"   🏆 Points: {user_data.get('points')}")
+                        print(f"   📊 Level: {user_data.get('level')}")
+                        print(f"   💎 Membership: {membership_level}")
+                        return True
+                    else:
+                        self.log_result("Updated User Info", False, "membership_level field missing from user info")
+                        print(f"   🔍 Available fields: {list(user_data.keys())}")
+                        return False
+                else:
+                    self.log_result("Updated User Info", False, f"/auth/me failed with status {me_response.status_code}")
+                    return False
+            else:
+                self.log_result("Updated User Info", False, f"Login failed with status {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_result("Updated User Info", False, "User info test failed", str(e))
+            return False
+
     def test_cart_endpoints_focused(self):
         """Focused test for cart endpoints as requested"""
         print("\n🛒 FOCUSED CART ENDPOINT TESTING")
